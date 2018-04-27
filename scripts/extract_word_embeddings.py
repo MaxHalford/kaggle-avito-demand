@@ -71,7 +71,7 @@ if __name__ == '__main__':
     columns = ['description', 'title', 'item_id']
     data = pd.concat(
         (
-            pd.read_csv('data/train.csv.zip', usecols=columns),
+            pd.read_csv('data/train.csv.zip', usecols=columns + ['deal_probability']),
             pd.read_csv('data/test.csv.zip', usecols=columns)
         ),
         ignore_index=True
@@ -93,6 +93,7 @@ if __name__ == '__main__':
     model.fit(data['description'])
     description_embeddings = pd.DataFrame(model.transform(data['description']))
 
+    print(data.shape)
     print(len(description_embeddings))
 
     description_embeddings = pd.concat([description_embeddings, data[['item_id']]], axis='columns')
