@@ -1,4 +1,3 @@
-import collections
 import string
 
 import gensim
@@ -6,7 +5,6 @@ import nltk
 from nltk.corpus import stopwords
 import numpy as np
 import pandas as pd
-from sklearn import feature_extraction
 
 
 STOP_WORDS = set(
@@ -17,34 +15,15 @@ STOP_WORDS = set(
 PUNCTUATION = str.maketrans({p: None for p in string.punctuation})
 
 
-class TfIdfEmbeddingVectorizer():
+class DocumentIterator():
 
-    def __init__(self, word2vec, size):
-        self.word2vec = word2vec
-        self.word2weight = None
-        self.dim = len(word2vec.values())
-        self.size = size
+    def __init__(self, documents, names):
+        self.documents = documents
+        self.names = names
 
-    def fit(self, X):
-        tfidf = feature_extraction.text.TfidfVectorizer(analyzer=lambda x: x)
-        tfidf.fit(X)
-        # if a word was never seen - it must be at least as infrequent
-        # as any of the known words - so the default idf is the max of
-        # known idf's
-        maxidf = max(tfidf.idf_)
-        self.word2weight = collections.defaultdict(
-            lambda: maxidf,
-            [(w, tfidf.idf_[i]) for w, i in tfidf.vocabulary_.items()])
-
-        return self
-
-    def transform(self, X):
-        return np.array([
-                np.mean([self.word2vec[w] * self.word2weight[w]
-                         for w in words if w in self.word2vec] or
-                        [np.zeros(self.size)], axis=0)
-                for words in X
-            ])
+    def __iter__(self):
+        for doc, name in zip(self.documents, self.names):
+            yield gensim.models.doc2vec.TaggedDocument(doc, [name])
 
 
 def tokenize_ru(text):
@@ -80,37 +59,40 @@ if __name__ == '__main__':
     # Determine which rows are train ones
     train_mask = data['deal_probability'].notnull()
 
-    # Extract description embeddings
+    # Description embeddings
 
-    data['description'] = data['description'].fillna('')
-    tokenized_description = data['description'].map(tokenize_ru).tolist()
+    # Train
+    data['description'].fillna('', inplace=True)
+    tokens = data['description'].map(tokenize_ru)
+    iterator = DocumentIterator(tokens, data['item_id'])
+    model = gensim.models.Doc2Vec(min_count=5, vector_size=32)
+    model.build_vocab(iterator)
+    model.train(iterator, total_examples=model.corpus_count, epochs=1)
+    docvecs = model.docvecs
+    del model  # Saves up a lot of RAM
 
-    embedding_size = 300
-    model_description = gensim.models.Word2Vec(tokenized_description, size=embedding_size)
-    w2v_description = dict(zip(model_description.wv.index2word, model_description.wv.vectors))
+    # Save
+    embeddings = pd.DataFrame(np.array([docvecs[name] for name in data['item_id']]))
+    embeddings['item_id'] = data['item_id']
+    assert len(embeddings) == len(data)
+    embeddings[train_mask].to_csv('features/train/description_embeddings.csv', index=False)
+    embeddings[~train_mask].to_csv('features/test/description_embeddings.csv', index=False)
 
-    model = TfIdfEmbeddingVectorizer(w2v_description, embedding_size)
-    model.fit(data['description'])
-    description_embeddings = pd.DataFrame(model.transform(data['description']))
+    # Title embeddings
 
-    print(data.shape)
-    print(len(description_embeddings))
+    # Train
+    data['title'].fillna('', inplace=True)
+    tokens = data['title'].map(tokenize_ru)
+    iterator = DocumentIterator(tokens, data['item_id'])
+    model = gensim.models.Doc2Vec(min_count=5, vector_size=32)
+    model.build_vocab(iterator)
+    model.train(iterator, total_examples=model.corpus_count, epochs=1)
+    docvecs = model.docvecs
+    del model  # Saves up a lot of RAM
 
-    description_embeddings = pd.concat([description_embeddings, data[['item_id']]], axis='columns')
-    description_embeddings[train_mask].to_csv('features/train/description_embeddings.csv', index=False)
-    description_embeddings[~train_mask].to_csv('features/test/description_embeddings.csv', index=False)
-
-    # Extract title embeddings
-
-    # data['title'] = data['title'].fillna('')
-    # tokenized_title = data['title'].map(tokenize_ru).tolist()
-    # size_title = 300
-    # model_title = gensim.models.Word2Vec(tokenized_title, size=size_title)
-    # w2v_title = dict(zip(model_title.wv.index2word, model_title.wv.vectors))
-
-    # word_vec_title = TfIdfEmbeddingVectorizer(w2v_title,size_title)
-
-    # word_vec_title.fit(data['title'])
-    # embedding_title = embedding.transform(data['title'])
-    # embedding_title = pd.DataFrame(embedding_description)
-    # embedding = pd.concat([embedding_description, embedding_title], axis=1)
+    # Save
+    embeddings = pd.DataFrame(np.array([docvecs[name] for name in data['item_id']]))
+    embeddings['item_id'] = data['item_id']
+    assert len(embeddings) == len(data)
+    embeddings[train_mask].to_csv('features/train/title_embeddings.csv', index=False)
+    embeddings[~train_mask].to_csv('features/test/title_embeddings.csv', index=False)

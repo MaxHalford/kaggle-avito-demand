@@ -19,8 +19,7 @@ def load_data(path_prefix):
         dtype={
             'category_name': 'category',
             'parent_category_name': 'category',
-            'user_type': 'category',
-            'user_id': 'category'
+            'user_type': 'category'
         }
     )
 
@@ -32,6 +31,22 @@ def load_data(path_prefix):
         on='image'
     )
     data['n_pixels'].fillna(-1, inplace=True)
+
+    # Add description embeddings
+    # data = pd.merge(
+    #     left=data,
+    #     right=pd.read_csv(os.path.join(path_prefix, 'description_embeddings.csv')),
+    #     how='left',
+    #     on='item_id'
+    # )
+
+    # Add title embeddings
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'title_embeddings.csv')),
+        how='left',
+        on='item_id'
+    )
 
     return data
 
@@ -53,7 +68,6 @@ cv = model_selection.KFold(n_splits=n_splits, shuffle=True, random_state=42)
 fit_scores = [0] * n_splits
 val_scores = [0] * n_splits
 feature_importances = pd.DataFrame(index=X_train.columns)
-sub['deal_probability'] = 0
 
 
 def rmse(y_true, y_pred):
@@ -71,7 +85,7 @@ params = {
     'metric': 'None',
     'max_depth': 5,
     'num_leaves': 5 ** 2 - 1,
-    'min_data_in_leaf': 10,
+    'min_data_in_leaf': 20,
     'learning_rate': 0.05,
     'feature_fraction': 0.9,
     'bagging_fraction': 1,
@@ -81,8 +95,12 @@ params = {
 
 for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
 
-    fit = lgbm.Dataset(X_train.iloc[fit_idx], y_train.iloc[fit_idx])
-    val = lgbm.Dataset(X_train.iloc[val_idx], y_train.iloc[val_idx])
+    X_fit = X_train.iloc[fit_idx]
+    y_fit = y_train.iloc[fit_idx]
+    X_val = X_train.iloc[val_idx]
+    y_val = y_train.iloc[val_idx]
+    fit = lgbm.Dataset(X_fit, y_fit)
+    val = lgbm.Dataset(X_val, y_val)
 
     model = lgbm.train(
         params,
@@ -95,8 +113,8 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
         early_stopping_rounds=20
     )
 
-    fit_scores[i] = rmse(fit.get_label(), model.predict(fit))
-    val_scores[i] = rmse(val.get_label(), model.predict(val))
+    fit_scores[i] = rmse(y_fit, model.predict(X_fit))
+    val_scores[i] = rmse(y_val, model.predict(X_val))
     feature_importances[i] = model.feature_importance
     sub['deal_probability'] += model.predict(X_test)
 
