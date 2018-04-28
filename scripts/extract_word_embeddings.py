@@ -65,7 +65,7 @@ if __name__ == '__main__':
     data['description'].fillna('', inplace=True)
     tokens = data['description'].map(tokenize_ru)
     iterator = DocumentIterator(tokens, data['item_id'])
-    model = gensim.models.Doc2Vec(min_count=5, vector_size=32)
+    model = gensim.models.Doc2Vec(min_count=5, vector_size=256)
     model.build_vocab(iterator)
     model.train(iterator, total_examples=model.corpus_count, epochs=1)
     docvecs = model.docvecs
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     data['title'].fillna('', inplace=True)
     tokens = data['title'].map(tokenize_ru)
     iterator = DocumentIterator(tokens, data['item_id'])
-    model = gensim.models.Doc2Vec(min_count=5, vector_size=32)
+    model = gensim.models.Doc2Vec(min_count=5, vector_size=256)
     model.build_vocab(iterator)
     model.train(iterator, total_examples=model.corpus_count, epochs=1)
     docvecs = model.docvecs

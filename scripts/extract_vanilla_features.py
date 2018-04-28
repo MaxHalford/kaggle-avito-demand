@@ -21,10 +21,8 @@ data = data.join(data.groupby('city').size().rename('city_n_ads'), on='city')
 # Number of adds per region
 data = data.join(data.groupby('region').size().rename('region_n_ads'), on='region')
 
-# Number of adds per parameter
-data = data.join(data.groupby('param_1').size().rename('param_1_n_ads'), on='param_1')
-data = data.join(data.groupby('param_2').size().rename('param_2_n_ads'), on='param_2')
-data = data.join(data.groupby('param_3').size().rename('param_3_n_ads'), on='param_3')
+# Number of adds per title
+data = data.join(data.groupby('title').size().rename('title_n_ads'), on='title')
 
 # Image classification code
 data['image_top_1'].fillna(-1, inplace=True)
@@ -52,8 +50,8 @@ data['title_n_characters'] = data['title'].fillna('').map(len)
 data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'\w+', x)))
 
 # Drop unneeded columns
-cols_to_drop = ['region', 'city', 'param_1', 'param_2', 'param_3',
-                'title', 'description', 'activation_date', 'user_id']
+cols_to_drop = ['title', 'description', 'activation_date', 'user_id',
+                'region', 'city']
 data.drop(cols_to_drop, axis='columns', inplace=True)
 
 # Save the features

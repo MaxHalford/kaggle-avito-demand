@@ -19,7 +19,10 @@ def load_data(path_prefix):
         dtype={
             'category_name': 'category',
             'parent_category_name': 'category',
-            'user_type': 'category'
+            'user_type': 'category',
+            'param_1': 'category',
+            'param_2': 'category',
+            'param_3': 'category'
         }
     )
 
@@ -32,7 +35,7 @@ def load_data(path_prefix):
     )
     data['n_pixels'].fillna(-1, inplace=True)
 
-    # Add description embeddings
+    # # Add description embeddings
     # data = pd.merge(
     #     left=data,
     #     right=pd.read_csv(os.path.join(path_prefix, 'description_embeddings.csv')),
@@ -40,13 +43,13 @@ def load_data(path_prefix):
     #     on='item_id'
     # )
 
-    # Add title embeddings
-    data = pd.merge(
-        left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'title_embeddings.csv')),
-        how='left',
-        on='item_id'
-    )
+    # # Add title embeddings
+    # data = pd.merge(
+    #     left=data,
+    #     right=pd.read_csv(os.path.join(path_prefix, 'title_embeddings.csv')),
+    #     how='left',
+    #     on='item_id'
+    # )
 
     return data
 
@@ -62,7 +65,7 @@ sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 0
 X_test = test.drop(['deal_probability', 'item_id', 'image'], axis='columns')
 
-n_splits = 5
+n_splits = 3
 cv = model_selection.KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
 fit_scores = [0] * n_splits
@@ -74,21 +77,16 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
-def rmse_lgbm(y_pred, dataset):
-    """Custom RMSE evaluation metric tailored for LightGBM."""
-    return ('RMSE', rmse(dataset.get_label(), y_pred), False)
-
-
 params = {
     'application': 'regression',
     'boosting_type': 'gbdt',
-    'metric': 'None',
-    'max_depth': 5,
-    'num_leaves': 5 ** 2 - 1,
+    'metric': 'rmse',
+    'max_depth': 4,
+    'num_leaves': 2 ** 4 - 1,
     'min_data_in_leaf': 20,
     'learning_rate': 0.05,
-    'feature_fraction': 0.9,
-    'bagging_fraction': 1,
+    'feature_fraction': 0.8,
+    'bagging_fraction': 0.8,
     'verbosity': 1
 }
 
@@ -108,14 +106,13 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
         num_boost_round=30000,
         valid_sets=(fit, val),
         valid_names=('fit', 'val'),
-        feval=rmse_lgbm,
         verbose_eval=50,
         early_stopping_rounds=20
     )
 
     fit_scores[i] = rmse(y_fit, model.predict(X_fit))
     val_scores[i] = rmse(y_val, model.predict(X_val))
-    feature_importances[i] = model.feature_importance
+    feature_importances[i] = model.feature_importance()
     sub['deal_probability'] += model.predict(X_test)
 
     print('Fold {} RMSE: {:.5f}'.format(i+1, val_scores[i]))
