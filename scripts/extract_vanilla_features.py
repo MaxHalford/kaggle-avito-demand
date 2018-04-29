@@ -13,19 +13,19 @@ data = pd.concat(
 )
 
 # Number of adds per user
-data = data.join(data.groupby('user_id').size().rename('user_n_ads'), on='user_id')
+data = data.join(data.groupby('user_id').size().rename('user_n_ads').astype('uint'), on='user_id')
 
 # Number of adds per city
-data = data.join(data.groupby('city').size().rename('city_n_ads'), on='city')
+data = data.join(data.groupby('city').size().rename('city_n_ads').astype('uint'), on='city')
 
 # Number of adds per region
-data = data.join(data.groupby('region').size().rename('region_n_ads'), on='region')
+data = data.join(data.groupby('region').size().rename('region_n_ads').astype('uint'), on='region')
 
 # Number of adds per title
-data = data.join(data.groupby('title').size().rename('title_n_ads'), on='title')
+data = data.join(data.groupby('title').size().rename('title_n_ads').astype('uint'), on='title')
 
-# Image classification code
-data['image_top_1'].fillna(-1, inplace=True)
+# Activation date day of the week
+data['activation_dow'] = pd.to_datetime(data['activation_date']).dt.dayofweek
 
 # Is the price a round price (e.g. 100 or 1000, not 42 or 1337)
 data['round_price'] = data['price'].map(
@@ -34,20 +34,27 @@ data['round_price'] = data['price'].map(
     else False
 )
 
-# Price
-data['price'].fillna(-1, inplace=True)
-
 # Number of characters in the description
-data['description_n_characters'] = data['description'].fillna('').map(len)
+data['description_n_characters'] = data['description'].fillna('').map(len).astype('uint')
+
+# Percentage of uppercase letters in the description
+data['description_upper_ratio'] = data['description'].fillna('')\
+                                                     .str.replace(' ', '')\
+                                                     .map(lambda x: sum(l.isupper() for l in x) / (len(x) + 1))
 
 # Number of words in the description
-data['description_n_words'] = data['description'].fillna('').map(lambda x: len(re.findall(r'\w+', x)))
+data['description_n_words'] = data['description'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
 # Number of characters in the title
-data['title_n_characters'] = data['title'].fillna('').map(len)
+data['title_n_characters'] = data['title'].fillna('').map(len).astype('uint')
+
+# Percentage of uppercase letters in the title
+data['title_upper_ratio'] = data['title'].fillna('')\
+                                         .str.replace(' ', '')\
+                                         .map(lambda x: sum(l.isupper() for l in x) / (len(x) + 1))
 
 # Number of words in the title
-data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'\w+', x)))
+data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
 # Drop unneeded columns
 cols_to_drop = ['title', 'description', 'activation_date', 'user_id',

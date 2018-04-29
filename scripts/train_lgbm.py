@@ -35,21 +35,21 @@ def load_data(path_prefix):
     )
     data['n_pixels'].fillna(-1, inplace=True)
 
-    # # Add description embeddings
-    # data = pd.merge(
-    #     left=data,
-    #     right=pd.read_csv(os.path.join(path_prefix, 'description_embeddings.csv')),
-    #     how='left',
-    #     on='item_id'
-    # )
+    # Add title SVD components
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'title_svd.csv')),
+        how='left',
+        on='item_id'
+    )
 
-    # # Add title embeddings
-    # data = pd.merge(
-    #     left=data,
-    #     right=pd.read_csv(os.path.join(path_prefix, 'title_embeddings.csv')),
-    #     how='left',
-    #     on='item_id'
-    # )
+    # Add description SVD components
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'description_svd.csv')),
+        how='left',
+        on='item_id'
+    )
 
     return data
 
@@ -65,7 +65,7 @@ sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 0
 X_test = test.drop(['deal_probability', 'item_id', 'image'], axis='columns')
 
-n_splits = 3
+n_splits = 5
 cv = model_selection.KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
 fit_scores = [0] * n_splits
@@ -81,12 +81,12 @@ params = {
     'application': 'regression',
     'boosting_type': 'gbdt',
     'metric': 'rmse',
-    'max_depth': 4,
-    'num_leaves': 2 ** 4 - 1,
+    'num_leaves': 2 ** 6,
     'min_data_in_leaf': 20,
-    'learning_rate': 0.05,
-    'feature_fraction': 0.8,
+    'learning_rate': 0.07,
+    'feature_fraction': 1,
     'bagging_fraction': 0.8,
+    'bagging_seed': 42,
     'verbosity': 1
 }
 
@@ -100,6 +100,7 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
     fit = lgbm.Dataset(X_fit, y_fit)
     val = lgbm.Dataset(X_val, y_val)
 
+    evals_result = {}
     model = lgbm.train(
         params,
         fit,
@@ -107,11 +108,16 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
         valid_sets=(fit, val),
         valid_names=('fit', 'val'),
         verbose_eval=50,
-        early_stopping_rounds=20
+        early_stopping_rounds=20,
+        evals_result=evals_result
     )
 
-    fit_scores[i] = rmse(y_fit, model.predict(X_fit))
-    val_scores[i] = rmse(y_val, model.predict(X_val))
+    if i == 1:
+        pd.DataFrame(model.predict(X_test)).to_csv('pred.csv')
+        pd.DataFrame(y_val).to_csv('val.csv')
+
+    fit_scores[i] = evals_result['fit']['rmse'][-1]
+    val_scores[i] = evals_result['val']['rmse'][-1]
     feature_importances[i] = model.feature_importance()
     sub['deal_probability'] += model.predict(X_test)
 
