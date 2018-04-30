@@ -6,11 +6,14 @@ import pandas as pd
 
 data = pd.concat(
     (
-        pd.read_csv('data/train.csv.zip'),
-        pd.read_csv('data/test.csv.zip')
+        pd.read_csv('data/train.csv.zip', parse_dates=['activation_date']),
+        pd.read_csv('data/test.csv.zip', parse_dates=['activation_date'])
     ),
     ignore_index=True
 )
+
+# Number of null values per row
+data['n_missing'] = data.isnull().sum(axis='columns').astype('uint8')
 
 # Number of adds per user
 data = data.join(data.groupby('user_id').size().rename('user_n_ads').astype('uint'), on='user_id')
@@ -25,7 +28,10 @@ data = data.join(data.groupby('region').size().rename('region_n_ads').astype('ui
 data = data.join(data.groupby('title').size().rename('title_n_ads').astype('uint'), on='title')
 
 # Activation date day of the week
-data['activation_dow'] = pd.to_datetime(data['activation_date']).dt.dayofweek
+data['activation_dow'] = data['activation_date'].dt.dayofweek
+
+# No price is indicated
+data['no_price'] = data['price'].isnull()
 
 # Is the price a round price (e.g. 100 or 1000, not 42 or 1337)
 data['round_price'] = data['price'].map(

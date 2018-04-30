@@ -14,7 +14,8 @@ data = pd.concat(
 
 train_mask = data['deal_probability'].notnull()
 
-stop_words = stopwords.words('russian') + ['что', 'это', 'так', 'вот', 'быть', 'как', 'в', '—', 'к', 'на']
+stop_words = set(stopwords.words('russian'))
+stop_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', 'в', '—', 'к', 'на'])
 tfidf = feature_extraction.text.TfidfVectorizer(stop_words=stop_words)
 
 # Title
@@ -22,7 +23,7 @@ tfidf = feature_extraction.text.TfidfVectorizer(stop_words=stop_words)
 tokens = tfidf.fit_transform(data['title'].fillna(''))
 
 n_comp = 5
-svd = decomposition.TruncatedSVD(n_components=n_comp, algorithm='arpack')
+svd = decomposition.TruncatedSVD(n_components=n_comp, algorithm='arpack', n_iter=10)
 components = pd.DataFrame(
     svd.fit_transform(tokens),
     columns=['title_comp_{}'.format(i+1) for i in range(n_comp)]
@@ -36,7 +37,7 @@ components[~train_mask].to_csv('features/test/title_svd.csv', index=False)
 tokens = tfidf.fit_transform(data['description'].fillna(''))
 
 n_comp = 5
-svd = decomposition.TruncatedSVD(n_components=n_comp, algorithm='arpack')
+svd = decomposition.TruncatedSVD(n_components=n_comp, algorithm='arpack', n_iter=10)
 components = pd.DataFrame(
     svd.fit_transform(tokens),
     columns=['description_comp_{}'.format(i+1) for i in range(n_comp)]

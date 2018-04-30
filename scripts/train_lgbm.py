@@ -51,6 +51,22 @@ def load_data(path_prefix):
         on='item_id'
     )
 
+    # Add active features
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
+        how='left',
+        on='item_id'
+    )
+
+    # Add words probas
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'title_avg_deal_proba.csv')),
+        how='left',
+        on='item_id'
+    )
+
     return data
 
 
@@ -82,10 +98,10 @@ params = {
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** 6,
-    'min_data_in_leaf': 20,
-    'learning_rate': 0.07,
-    'feature_fraction': 1,
-    'bagging_fraction': 0.8,
+    'min_data_in_leaf': 100,
+    'learning_rate': 0.05,
+    'feature_fraction': 0.7,
+    'bagging_fraction': 0.7,
     'bagging_seed': 42,
     'verbosity': 1
 }
@@ -108,13 +124,9 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
         valid_sets=(fit, val),
         valid_names=('fit', 'val'),
         verbose_eval=50,
-        early_stopping_rounds=20,
+        early_stopping_rounds=50,
         evals_result=evals_result
     )
-
-    if i == 1:
-        pd.DataFrame(model.predict(X_test)).to_csv('pred.csv')
-        pd.DataFrame(y_val).to_csv('val.csv')
 
     fit_scores[i] = evals_result['fit']['rmse'][-1]
     val_scores[i] = evals_result['val']['rmse'][-1]
