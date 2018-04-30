@@ -31,37 +31,64 @@ def get_input_shape(model_name) :
 
 def predict_label(model, image): 
 	preds = model.predict(image)
-	probability = imagenet_utils.decode_predictions(preds)
-	return probability
+	P = imagenet_utils.decode_predictions(preds)
+	return P
+
+def export_features(imagenet):
+	
+	df = pd.DataFrame.from_dict(imagenet, orient='index')
+	df.index.names = ['image']
+	df = df.reset_index()
+
+	# We do not replace nan values in columns which is type of string 
+	# object_0, object_1, object_2, object_3, object_4
+	df['mean_probability'].fillna(df['mean_probability'].mean(), inplace=True)
+	df['std_probability'].fillna(df['std_probability'].mean(), inplace=True)
+	df['object_0_probability'].fillna(df['object_0_probability'].mean(), inplace=True)
+	df['object_1_probability'].fillna(df['object_1_probability'].mean(), inplace=True)
+	df['object_2_probability'].fillna(df['object_2_probability'].mean(), inplace=True)
+	df['object_3_probability'].fillna(df['object_3_probability'].mean(), inplace=True)
+	df['object_4_probability'].fillna(df['object_4_probability'].mean(), inplace=True)
+
+	return df
 
 
 def extract_probability(files, input_shape, preprocess, model) : 
 
 	imagenet = {}
 	n_errors = 0
+	compteur = 0
 	
 	for f in tqdm(files):
 		
 		name = os.path.basename(f).split('.')[0]
 		
 		with archive.open(f) as file:
-			
+
+			compteur +=1
+
+			if compteur == 100000 : 
+				export_features(imagenet).to_csv('features/train/imagenet.csv', index=False)
+				compteur = 0
+
 			try:
 
 				image = load_img(file, target_size=input_shape)
 				image = img_to_array(image)
 				image = np.expand_dims(image, axis=0)
 				image = preprocess(image)
-				probability = predict_label(model, image)
-				probability = np.array([x[2] for x in probability[0]])
+				P = predict_label(model, image)
+				probability = np.array([x[2] for x in P[0]])
 
 
 				imagenet[name] = {
 				'mean_probability' : probability.mean(),
 				'std_probability' : probability.std(),
-				'median_probability' : probability[2],
-				'max_probability' : probability[0]
 				}
+				
+				for i in range(len(P[0])):
+					imagenet[name]['object_{}'.format(i)] = P[0][i][1] 
+					imagenet[name]['object_{}_probability'.format(i)] =  P[0][i][2]
 
 			except : 
 
@@ -70,21 +97,23 @@ def extract_probability(files, input_shape, preprocess, model) :
 				imagenet[name] = {
 				'mean_probability' : None,
 				'std_probability' : None,
-				'median_probability' : None,
-				'max_probability' : None
+				'object_0': None,
+				'object_0_probability': None,
+				'object_1': None,
+				'object_1_probability': None,
+				'object_2': None,
+				'object_2_probability': None,
+				'object_3': None,
+				'object_3_probability': None,
+				'object_4': None,
+				'object_4_probability': None,
 				}
 
 
-	df = pd.DataFrame.from_dict(imagenet, orient='index')
-	df.index.names = ['image']
-	df = df.reset_index()
-
-	df['mean_probability'].fillna(df['mean_probability'].mean(), inplace=True)
-	df['std_probability'].fillna(df['std_probability'].mean(), inplace=True)
-	df['median_probability'].fillna(df['median_probability'].mean(), inplace=True)
-	df['max_probability'].fillna(df['max_probability'].mean(), inplace=True)
 
 	print('Number of errors: {}'.format(n_errors))
+
+	df = export_features(imagenet)
 
 	return df
 
@@ -106,4 +135,4 @@ if __name__ == '__main__' :
 	input_shape, preprocess = get_input_shape(model_name)
 	model = initializate_model(model_name, MODELS)
 
-	extract_probability(files, input_shape, preprocess,  model).to_csv('features/train/imagenet.csv', index=False)
+	extract_probability(files, input_shape, preprocess,  model)
