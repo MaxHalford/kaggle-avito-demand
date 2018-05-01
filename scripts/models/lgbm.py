@@ -62,7 +62,7 @@ def load_data(path_prefix):
     # Add title probas
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'title_avg_deal_proba.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'title_likelihoods.csv')),
         how='left',
         on='item_id'
     )
@@ -70,7 +70,7 @@ def load_data(path_prefix):
     # Add description probas
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'description_avg_deal_proba.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'description_likelihoods.csv')),
         how='left',
         on='item_id'
     )
@@ -87,15 +87,15 @@ y_train = train['deal_probability']
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 0
-X_test = test.drop(['deal_probability', 'image'], axis='columns')
+X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
 # Load folds
 with open('folds/folds_item_ids.json') as infile:
     folds_item_ids = json.load(infile)
 
-fit_scores = [0] * len(folds_item_ids)
-val_scores = [0] * len(folds_item_ids)
-feature_importances = pd.DataFrame(index=X_train.columns)
+fit_scores = {}
+val_scores = {}
+feature_importances = pd.DataFrame(index=X_test.columns)
 
 
 def rmse(y_true, y_pred):
@@ -142,29 +142,29 @@ for i in folds_item_ids.keys():
 
     fit_scores[i] = evals_result['fit']['rmse'][-1]
     val_scores[i] = evals_result['val']['rmse'][-1]
-    feature_importances[i] = model.feature_importance()
     val_predict = model.predict(X_val)
     test_predict = model.predict(X_test)
     sub['deal_probability'] += test_predict
+    feature_importances[i] = model.feature_importance()
 
-    # Save out of fold predictions
+    # Save out-of-fold predictions
     name = 'folds/lgbm_val_{}_{:.5f}.csv'.format(i, val_scores[i])
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
     name = 'folds/lgbm_test_{}_{:.5f}.csv'.format(i, val_scores[i])
     pd.Series(test_predict).to_csv(name, index=False)
 
-    print('Fold {} RMSE: {:.5f}'.format(i+1, val_scores[i]))
+    print('Fold {} RMSE: {:.5f}'.format(int(i)+1, val_scores[i]))
 
 # Show train and validation scores
-fit_mean = np.mean(fit_scores)
-fit_std = np.std(fit_scores)
-val_mean = np.mean(val_scores)
-val_std = np.std(val_scores)
+fit_mean = np.mean(list(fit_scores.values()))
+fit_std = np.std(list(fit_scores.values()))
+val_mean = np.mean(list(val_scores.values()))
+val_std = np.std(list(val_scores.values()))
 print('Fit RMSE: {:.5f} (±{:.5f})'.format(fit_mean, fit_std))
 print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
-# Save feature_importances
+# Save feature importances
 feature_importances.to_csv('feature_importances.csv')
 
 # Save submission

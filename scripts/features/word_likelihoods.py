@@ -72,7 +72,7 @@ if __name__ == '__main__':
                 test_item_tokens[row['item_id']].append(token)
 
         # Compute average deal probabilities of each item's tokens
-        feature_name = '{}_avg_deal_proba'.format(col)
+        feature_name = '{}_likelihoods'.format(col)
         train[feature_name] = train['item_id'].map(
             lambda x: mean([token_deal_proba_means[token] for token in train_item_tokens[x]] or [PRIOR])
         )
