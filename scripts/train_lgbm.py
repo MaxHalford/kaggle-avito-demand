@@ -1,10 +1,10 @@
+import json
 import os
 
 import lightgbm as lgbm
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn import model_selection
 
 
 # Yo, science, bitch
@@ -80,20 +80,21 @@ def load_data(path_prefix):
 
 # Load train features
 train = load_data('features/train')
-X_train = train.drop(['deal_probability', 'item_id', 'image'], axis='columns')
+X_train = train.drop(['deal_probability', 'image'], axis='columns')
 y_train = train['deal_probability']
 
 # Load test features
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 0
-X_test = test.drop(['deal_probability', 'item_id', 'image'], axis='columns')
+X_test = test.drop(['deal_probability', 'image'], axis='columns')
 
-n_splits = 5
-cv = model_selection.KFold(n_splits=n_splits, shuffle=True, random_state=42)
+# Load folds
+with open('folds/folds_item_ids.json') as infile:
+    folds_item_ids = json.load(infile)
 
-fit_scores = [0] * n_splits
-val_scores = [0] * n_splits
+fit_scores = [0] * len(folds_item_ids)
+val_scores = [0] * len(folds_item_ids)
 feature_importances = pd.DataFrame(index=X_train.columns)
 
 
@@ -115,12 +116,15 @@ params = {
 }
 
 
-for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
+for i in folds_item_ids.keys():
 
-    X_fit = X_train.iloc[fit_idx]
-    y_fit = y_train.iloc[fit_idx]
-    X_val = X_train.iloc[val_idx]
-    y_val = y_train.iloc[val_idx]
+    # Determine train and val folds
+    fit_mask = X_train['item_id'].isin(folds_item_ids[i]['fit'])
+    val_mask = X_train['item_id'].isin(folds_item_ids[i]['val'])
+    X_fit = X_train[fit_mask].drop('item_id', axis='columns')
+    y_fit = y_train[fit_mask]
+    X_val = X_train[val_mask].drop('item_id', axis='columns')
+    y_val = y_train[val_mask]
     fit = lgbm.Dataset(X_fit, y_fit)
     val = lgbm.Dataset(X_val, y_val)
 
@@ -139,7 +143,16 @@ for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
     fit_scores[i] = evals_result['fit']['rmse'][-1]
     val_scores[i] = evals_result['val']['rmse'][-1]
     feature_importances[i] = model.feature_importance()
-    sub['deal_probability'] += model.predict(X_test)
+    val_predict = model.predict(X_val)
+    test_predict = model.predict(X_test)
+    sub['deal_probability'] += test_predict
+
+    # Save out of fold predictions
+    name = 'folds/lgbm_val_{}_{:.5f}.csv'.format(i, val_scores[i])
+    pd.Series(val_predict).to_csv(name, index=False)
+    # Save test predictions
+    name = 'folds/lgbm_test_{}_{:.5f}.csv'.format(i, val_scores[i])
+    pd.Series(test_predict).to_csv(name, index=False)
 
     print('Fold {} RMSE: {:.5f}'.format(i+1, val_scores[i]))
 
@@ -155,8 +168,8 @@ print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
-sub['deal_probability'] = (sub['deal_probability'] / n_splits).clip(0, 1)
-sub_name = 'submissions/lgbm_vanilla_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
+sub['deal_probability'] = (sub['deal_probability'] / len(folds_item_ids)).clip(0, 1)
+sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,
     val_mean,

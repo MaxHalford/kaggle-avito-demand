@@ -39,6 +39,8 @@ if __name__ == '__main__':
 
     for col in ['title', 'description']:
 
+        print('Extracting words probas for column: {}'.format(col))
+
         # Load data
         cols = ['item_id', col]
         train = pd.read_csv('data/train.csv.zip', usecols=cols + ['deal_probability'])
