@@ -103,16 +103,13 @@ model = models.Sequential()
 model.add(layers.Embedding(n_words, embed_dim,
           weights=[embedding_matrix], input_length=30, trainable=False))
 model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
-model.add(layers.AveragePooling1D(2))
-model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
-model.add(layers.MaxPooling1D(2))
-model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
 model.add(layers.MaxPooling1D(2))
 model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
 model.add(layers.GlobalMaxPooling1D())
 model.add(layers.Dropout(0.5))
 model.add(layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(weight_decay)))
 model.add(layers.Dense(1))
+
 
 def root_mean_squared_error(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
@@ -131,7 +128,7 @@ train_mask = data['deal_probability'].notnull()
 with open('folds/folds_item_ids.json') as infile:
     folds_item_ids = json.load(infile)
 
-# Cross validation 
+
 for i in folds_item_ids.keys():
 
     # Determine train and val folds
