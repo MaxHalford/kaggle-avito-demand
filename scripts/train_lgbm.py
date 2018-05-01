@@ -59,10 +59,18 @@ def load_data(path_prefix):
         on='item_id'
     )
 
-    # Add words probas
+    # Add title probas
     data = pd.merge(
         left=data,
         right=pd.read_csv(os.path.join(path_prefix, 'title_avg_deal_proba.csv')),
+        how='left',
+        on='item_id'
+    )
+
+    # Add description probas
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'description_avg_deal_proba.csv')),
         how='left',
         on='item_id'
     )
@@ -94,7 +102,7 @@ def rmse(y_true, y_pred):
 
 
 params = {
-    'application': 'regression',
+    'application': 'xentropy',
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** 6,
