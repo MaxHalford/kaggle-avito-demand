@@ -62,6 +62,10 @@ data['title_upper_ratio'] = data['title'].fillna('')\
 # Number of words in the title
 data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
+# Difference between the item's price and it's category's median price
+median_prices_per_cat = data.groupby('category_name')['price'].median()
+data['category_price_diff'] = data['price'] - data['category_name'].map(median_prices_per_cat)
+
 # Drop unneeded columns
 cols_to_drop = ['title', 'description', 'activation_date', 'user_id',
                 'region', 'city']

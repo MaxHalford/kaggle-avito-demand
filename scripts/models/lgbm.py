@@ -148,10 +148,10 @@ for i in folds_item_ids.keys():
     feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
-    name = 'folds/lgbm_val_{}_{:.5f}.csv'.format(i, val_scores[i])
+    name = 'folds/lgbm_val_{}.csv'.format(i)
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
-    name = 'folds/lgbm_test_{}_{:.5f}.csv'.format(i, val_scores[i])
+    name = 'folds/lgbm_test_{}.csv'.format(i)
     pd.Series(test_predict).to_csv(name, index=False)
 
     print('Fold {} RMSE: {:.5f}'.format(int(i)+1, val_scores[i]))
