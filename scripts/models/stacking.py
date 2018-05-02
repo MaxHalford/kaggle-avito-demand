@@ -3,7 +3,6 @@ import json
 
 import numpy as np
 import pandas as pd
-from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
@@ -16,7 +15,7 @@ def rmse(y_true, y_pred):
 # Choose which models to use
 model_names = [
     'lgbm',
-    'cnn_title'
+    'random_forest'
 ]
 
 # Load the true labels in the right order
@@ -49,9 +48,8 @@ for model_name in model_names:
 
     print('{} has an average RMSE of {:.5f}'.format(model_name, rmse(y_pred_train, y_train)))
 
-
 # Choose meta-model
-meta_model = linear_model.Ridge()
+meta_model = linear_model.LinearRegression()
 
 # Determine the CV score of the meta-model for the lolz
 cv = model_selection.KFold(n_splits=5, shuffle=True, random_state=42)

@@ -46,9 +46,13 @@ The feature extraction is done separately from the model training. The features 
 ### Feature extraction
 
 ```sh
->>> python scripts/extract_vanilla_features.py
->>> python scripts/extract_n_pixels_per_image.py
->>> python scripts/extract_word_embeddings.py
+>>> python scripts/features/active.py
+>>> python scripts/features/image_quality.py
+>>> python scripts/features/text_likelihoods.py
+>>> python scripts/features/vanilla.py
+
+>>> python scripts/models/determine_cv.py
+>>> python scripts/models/lgbm.py
 ```
 
 ### Model training
@@ -56,3 +60,52 @@ The feature extraction is done separately from the model training. The features 
 ```sh
 >>> python scripts/train_lgbm.py
 ```
+
+## Explanation
+
+### Overview
+
+TODO
+
+### Features
+
+All the scripts for extracting features are located in `scripts/features`.
+
+`active.py`
+
+Extracts basic features from `train_active.csv` and `test_active.csv`. For example for each `user_id` in `train.csv` (respectively `test.csv`) we check if it is contained in `train_active.csv` (respectively `test_active.csv`).
+
+`image_quality.py`
+
+For each image we compute:
+
+- the number of pixels
+- the sharpness
+- the brightness
+- the contrast
+
+The general idea being that we want to get a rough idea of the quality of each image.
+
+`imagenet.py`
+
+TODO
+
+`text_embeddings.py`
+
+TODO
+
+`text_likelihoods.py`
+
+This is a cool one :v:. The idea is that we want to determine how each word in the titles (and the descriptions) influence the deal probability. To do so we first calculate the average deal probability (we call it a posterior) per word (we actually clean and stem each word). Then, for each title (and description) we average the posterior of each token it contains. To counter the bias that occurs when tokens don't appear frequently we bias the posteriors like it is done [here](https://www.wikiwand.com/en/Bayes_estimator#/Practical_example_of_Bayes_estimators).
+
+`text_svd.py`
+
+Here we shamelessly copied an idea from [SRK's notebook](https://www.kaggle.com/sudalairajkumar/simple-exploration-baseline-notebook-avito). We separately compute the TF-IDF matrix for the titles and the descriptions followed by a PCA to extract the main principal components.
+
+`vanilla.py`
+
+This extracts a bunch of basic features (which we call "vanilla"). The script is quite explicit and commented.
+
+### Models
+
+TODO

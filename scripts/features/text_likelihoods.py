@@ -25,8 +25,6 @@ def tokenize(sentence):
     tokens = set(tokens).difference(STOP_WORDS)
     # Step tokens
     tokens = [STEMMER.stem(token) for token in tokens]
-    # Add n-grams
-    tokens.extend([' '.join(ngram) for ngram in nltk.ngrams(tokens, 2)])
 
     return tokens
 
