@@ -17,11 +17,11 @@ import numpy as np
 from tqdm import tqdm
 
 # description or title
-COLUMN = 'title'
+COLUMN = 'description'
 
 data = pd.concat(
     (
-        pd.read_csv('data/train.csv.zip').sample(400000),
+        pd.read_csv('data/train.csv.zip'),
         pd.read_csv('data/test.csv.zip')
     ),
     ignore_index=True
