@@ -71,7 +71,7 @@ def compute_pixels_per_image(path):
     }, orient='index').reset_index()
     features.columns = ['image', 'n_pixels', 'sharpness', 'brightness', 'contrast']
 
-    return features.fillna(features.mean())
+    return features
 
 
 if __name__ == '__main__':

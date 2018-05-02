@@ -1,17 +1,15 @@
 import collections
 import string
 
-from nltk import corpus
-from nltk import stem
-from nltk import tokenize
+import nltk
 import pandas as pd
 from tqdm import tqdm
 
 
-STOP_WORDS = set(corpus.stopwords.words('russian'))
+STOP_WORDS = set(nltk.corpus.stopwords.words('russian'))
 STOP_WORDS.update(['что', 'это', 'так', 'вот', 'быть', 'как', 'в', '—', 'к', 'на'])
-STEMMER = stem.snowball.SnowballStemmer('russian')
-TOKENIZER = tokenize.RegexpTokenizer('\w+|\$[\d\.]+|\S+')
+STEMMER = nltk.stem.snowball.SnowballStemmer('russian')
+TOKENIZER = nltk.tokenize.RegexpTokenizer('\w+|\$[\d\.]+|\S+')
 PUNCTUATION = str.maketrans({p: None for p in string.punctuation})
 PRIOR = 0.14
 PRIOR_WEIGHT = 100
@@ -27,6 +25,8 @@ def tokenize(sentence):
     tokens = set(tokens).difference(STOP_WORDS)
     # Step tokens
     tokens = [STEMMER.stem(token) for token in tokens]
+    # Add n-grams
+    tokens.extend([' '.join(ngram) for ngram in nltk.ngrams(tokens, 2)])
 
     return tokens
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     for col in ['title', 'description']:
 
-        print('Extracting words probas for column: {}'.format(col))
+        print('Extracting words likelihoods for column: {}'.format(col))
 
         # Load data
         cols = ['item_id', col]
