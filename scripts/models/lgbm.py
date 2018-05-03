@@ -26,15 +26,6 @@ def load_data(path_prefix):
         }
     )
 
-    # Add number of pixels per image
-    data = pd.merge(
-        left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'n_pixels.csv')),
-        how='left',
-        on='image'
-    )
-    data['n_pixels'].fillna(-1, inplace=True)
-
     # Add title SVD components
     data = pd.merge(
         left=data,
