@@ -1,153 +1,139 @@
-import pandas as pd
 import json
-import codecs
+import string
 
-import keras
+import gensim
 from keras import optimizers
 from keras import backend as K
 from keras import regularizers
 from keras import models
 from keras import layers
-from keras import utils
 from keras import preprocessing
 from keras import callbacks
-from nltk import corpus
-from nltk import tokenize
+import nltk
 import numpy as np
-from tqdm import tqdm
-
-# description or title
-COLUMN = 'description'
-
-data = pd.concat(
-    (
-        pd.read_csv('data/train.csv.zip'),
-        pd.read_csv('data/test.csv.zip')
-    ),
-    ignore_index=True
-)
-
-data[COLUMN].fillna('', inplace=True)
-
-################################################################################
+import pandas as pd
 
 
-
+COLUMN = 'title'  # description or title
+TOKENIZER = nltk.tokenize.RegexpTokenizer('\w+|\$[\d\.]+|\S+')
+PUNCTUATION = str.maketrans({p: None for p in string.punctuation})
+EMBEDDINGS_FILE = 'features/custom_embeddings.vec'
+PADDING = 10
 N_MAX_WORDS = 100000
+BATCH_SIZE = 256
+NUM_EPOCHS = 8
+NUM_FILTERS = 64
+EMBEDDING_SIZE = 100
+WEIGHT_DECAY = 1e-4
 
-stop_words = set(corpus.stopwords.words('russian'))
-stop_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', 'в', '—', 'к', 'на'])
 
+def clean_and_tokenize(text):
 
-embeddings = {}
-with codecs.open('data/cc.ru.300.vec', encoding='utf-8') as f:
-    for line in tqdm(f):
-        values = line.rstrip().rsplit(' ')
-        word = values[0]
-        embedding = np.asarray(values[1:], dtype='float32')
-        embeddings[word] = embedding
+    # Clean
+    text = text.translate(PUNCTUATION)\
+               .replace('«', '')\
+               .replace('»', '')\
+               .lower()
 
-################################################################################
+    # Tokenize
+    tokens = TOKENIZER.tokenize(text)
 
-tokenizer = tokenize.RegexpTokenizer(r'\w+')
-
-doc_tokens = []
-for doc in tqdm(data[COLUMN]):
-    tokens = tokenizer.tokenize(doc)
-    tokens = set(tokens).difference(stop_words)
-    doc_tokens.append(list(tokens))
-
-################################################################################
-
-tokenizer = preprocessing.text.Tokenizer(num_words=N_MAX_WORDS, lower=True)
-tokenizer.fit_on_texts(doc_tokens)
-doc_tokens_idx = tokenizer.texts_to_sequences(doc_tokens)
-
-################################################################################
-
-doc_tokens_idx = preprocessing.sequence.pad_sequences(doc_tokens_idx, maxlen=30)
-
-################################################################################
-
-#training params
-batch_size = 256
-num_epochs = 8
-
-#model parameters
-num_filters = 64
-embed_dim = 300
-weight_decay = 1e-4
-
-################################################################################
-
-words_not_found = []
-n_words = min(100000, len(tokenizer.word_index))
-embedding_matrix = np.zeros((n_words, embed_dim))
-for word, i in tokenizer.word_index.items():
-    if i >= n_words:
-        continue
-    embedding = embeddings.get(word)
-    if (embedding is not None) and len(embedding) > 0:
-        embedding_matrix[i] = embedding
-    else:
-        words_not_found.append(word)
-print('number of null word embeddings: %d' % np.sum(np.sum(embedding_matrix, axis=1) == 0))
-
-################################################################################
-
-print("sample words not found: ", np.random.choice(words_not_found, 10))
-
-################################################################################
-
-model = models.Sequential()
-model.add(layers.Embedding(n_words, embed_dim,
-          weights=[embedding_matrix], input_length=30, trainable=False))
-model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
-model.add(layers.MaxPooling1D(2))
-model.add(layers.Conv1D(num_filters, 7, activation='relu', padding='same'))
-model.add(layers.GlobalMaxPooling1D())
-model.add(layers.Dropout(0.5))
-model.add(layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(weight_decay)))
-model.add(layers.Dense(1))
+    return tokens
 
 
 def root_mean_squared_error(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
-adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-model.compile(loss='mse', optimizer=adam, metrics=[root_mean_squared_error])
-model.summary()
 
-################################################################################
+if __name__ == '__main__':
 
-early_stopping = callbacks.EarlyStopping(monitor='val_loss', min_delta=0.01, patience=4, verbose=1)
-callbacks_list = [early_stopping]
-train_mask = data['deal_probability'].notnull()
+    # Load data
+    columns = ['item_id', 'deal_probability', COLUMN]
+    data = pd.concat(
+        (
+            pd.read_csv('data/train.csv.zip', usecols=columns),
+            pd.read_csv('data/test.csv.zip', usecols=columns)
+        ),
+        ignore_index=True
+    )
 
-# Load folds
-with open('folds/folds_item_ids.json') as infile:
-    folds_item_ids = json.load(infile)
+    # Load folds
+    with open('folds/folds_item_ids.json') as infile:
+        folds_item_ids = json.load(infile)
 
+    # Load embeddings
+    embeddings = gensim.models.KeyedVectors.load_word2vec_format(EMBEDDINGS_FILE, binary=False)
 
-for i in folds_item_ids.keys():
+    # Clean and tokenize
+    tokens = data[COLUMN].fillna('').map(clean_and_tokenize).tolist()
 
-    # Determine train and val folds
-    fit_mask = data['item_id'].isin(folds_item_ids[i]['fit'])
-    val_mask = data['item_id'].isin(folds_item_ids[i]['val'])
-    hist = model.fit(
-        doc_tokens_idx[fit_mask],
-        data['deal_probability'][fit_mask],
-        batch_size=batch_size,
-        epochs=num_epochs,
-        callbacks=callbacks_list,
-        validation_split=0.1,
-        shuffle=True,
-        verbose=2
+    # Get token indexes
+    idx_tokenizer = preprocessing.text.Tokenizer(num_words=N_MAX_WORDS)
+    idx_tokenizer.fit_on_texts(tokens)
+    tokens_idx = idx_tokenizer.texts_to_sequences(tokens)
+
+    # Apply padding
+    tokens_idx = preprocessing.sequence.pad_sequences(tokens_idx, maxlen=PADDING)
+
+    # Build embedding matrix
+    missing_tokens = []
+    n_tokens = len(idx_tokenizer.word_index) + 1
+    embedding_matrix = np.zeros((n_tokens, EMBEDDING_SIZE))
+    for word, i in idx_tokenizer.word_index.items():
+        try:
+            embedding = embeddings.get_vector(word)
+            embedding_matrix[i] = embedding
+        except KeyError:
+            missing_tokens.append(word)
+    print('Number of words not found: {}'.format(len(missing_tokens)))
+
+    # Initialize the model
+    model = models.Sequential()
+    model.add(layers.Embedding(
+        n_tokens,
+        EMBEDDING_SIZE,
+        weights=[embedding_matrix],
+        input_length=PADDING,
+        trainable=False
+    ))
+    model.add(layers.Conv1D(NUM_FILTERS, 7, activation='relu', padding='same'))
+    model.add(layers.MaxPooling1D(2))
+    model.add(layers.Conv1D(NUM_FILTERS, 7, activation='relu', padding='same'))
+    model.add(layers.GlobalMaxPooling1D())
+    model.add(layers.Dropout(0.5))
+    model.add(layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(WEIGHT_DECAY)))
+    model.add(layers.Dense(1))
+    adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    model.compile(loss='mse', optimizer=adam, metrics=[root_mean_squared_error])
+    model.summary()
+    early_stopping = callbacks.EarlyStopping(
+        monitor='val_loss',
+        min_delta=0.01,
+        patience=4,
+        verbose=1
+    )
+    callbacks_list = [early_stopping]
+    train_mask = data['deal_probability'].notnull()
+
+    # Train
+    for i in folds_item_ids.keys():
+
+        fit_mask = data['item_id'].isin(folds_item_ids[i]['fit'])
+        val_mask = data['item_id'].isin(folds_item_ids[i]['val'])
+
+        hist = model.fit(
+            tokens_idx[fit_mask],
+            data['deal_probability'][fit_mask],
+            batch_size=BATCH_SIZE,
+            epochs=NUM_EPOCHS,
+            callbacks=callbacks_list,
+            validation_split=0.1,
+            shuffle=True,
+            verbose=2
         )
 
-################################################################################
-
-    y_val = model.predict(doc_tokens_idx[val_mask])
-    pd.Series(y_val[:,  0]).to_csv('folds/cnn_{}_val_{}.csv'.format(COLUMN, i),index = False)
-    y_test = model.predict(doc_tokens_idx[~train_mask])
-    pd.Series(y_test[:,  0]).to_csv('folds/cnn_{}_test_{}.csv'.format(COLUMN, i),index = False)
+        # Save out-of-fold and test predictions
+        y_val = model.predict(tokens_idx[val_mask])
+        pd.Series(y_val[:,  0]).to_csv('folds/cnn_{}_val_{}.csv'.format(COLUMN, i), index=False)
+        y_test = model.predict(tokens_idx[~train_mask])
+        pd.Series(y_test[:,  0]).to_csv('folds/cnn_{}_test_{}.csv'.format(COLUMN, i), index=False)
