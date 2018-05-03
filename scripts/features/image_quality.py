@@ -75,5 +75,5 @@ def compute_pixels_per_image(path):
 
 
 if __name__ == '__main__':
-    compute_pixels_per_image('data/train_jpg.zip').to_csv('features/train/image_features.csv', index=False)
-    compute_pixels_per_image('data/test_jpg.zip').to_csv('features/test/image_features.csv', index=False)
+    compute_pixels_per_image('data/train_jpg.zip').to_csv('features/train/image_quality.csv', index=False)
+    compute_pixels_per_image('data/test_jpg.zip').to_csv('features/test/image_quality.csv', index=False)
