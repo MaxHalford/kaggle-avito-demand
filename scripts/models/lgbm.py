@@ -75,6 +75,14 @@ def load_data(path_prefix):
         on='item_id'
     )
 
+    # Add image quality
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'image_quality.csv')),
+        how='left',
+        on='image'
+    )
+
     return data
 
 
@@ -107,11 +115,13 @@ params = {
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** 6,
-    'min_data_in_leaf': 100,
-    'learning_rate': 0.05,
+    'min_data_in_leaf': 30,
+    'learning_rate': 0.03,
     'feature_fraction': 0.7,
     'bagging_fraction': 0.7,
     'bagging_seed': 42,
+    'lambda_l1': 1,
+    'lambda_l2': 2,
     'verbosity': 1
 }
 
@@ -176,3 +186,5 @@ sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     val_std
 )
 sub.to_csv(sub_name, index=False)
+
+# lgbm_vanilla_0.20387_0.00071_0.21960_0.00023.csv
