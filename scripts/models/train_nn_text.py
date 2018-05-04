@@ -17,7 +17,7 @@ import pandas as pd
 COLUMN = 'title'  # description or title
 TOKENIZER = nltk.tokenize.RegexpTokenizer('\w+|\$[\d\.]+|\S+')
 PUNCTUATION = str.maketrans({p: None for p in string.punctuation})
-EMBEDDINGS_FILE = 'features/custom_embeddings.vec'
+EMBEDDINGS_FILE = 'features/custom_embeddings{}.vec'.format(COLUMN)
 PADDING = 10
 N_MAX_WORDS = 100000
 BATCH_SIZE = 256
@@ -48,10 +48,11 @@ def root_mean_squared_error(y_true, y_pred):
 if __name__ == '__main__':
 
     # Load data
-    columns = ['item_id', 'deal_probability', COLUMN]
+    columns = ['item_id', COLUMN]
     data = pd.concat(
         (
-            pd.read_csv('data/train.csv.zip', usecols=columns),
+            pd.read_csv('data/train.csv.zip',
+                        usecols=columns + ['deal_probability']),
             pd.read_csv('data/test.csv.zip', usecols=columns)
         ),
         ignore_index=True
@@ -62,7 +63,8 @@ if __name__ == '__main__':
         folds_item_ids = json.load(infile)
 
     # Load embeddings
-    embeddings = gensim.models.KeyedVectors.load_word2vec_format(EMBEDDINGS_FILE, binary=False)
+    embeddings = gensim.models.KeyedVectors.load_word2vec_format(
+        EMBEDDINGS_FILE, binary=False)
 
     # Clean and tokenize
     tokens = data[COLUMN].fillna('').map(clean_and_tokenize).tolist()
@@ -73,7 +75,8 @@ if __name__ == '__main__':
     tokens_idx = idx_tokenizer.texts_to_sequences(tokens)
 
     # Apply padding
-    tokens_idx = preprocessing.sequence.pad_sequences(tokens_idx, maxlen=PADDING)
+    tokens_idx = preprocessing.sequence.pad_sequences(
+        tokens_idx, maxlen=PADDING)
 
     # Build embedding matrix
     missing_tokens = []
@@ -101,10 +104,13 @@ if __name__ == '__main__':
     model.add(layers.Conv1D(NUM_FILTERS, 7, activation='relu', padding='same'))
     model.add(layers.GlobalMaxPooling1D())
     model.add(layers.Dropout(0.5))
-    model.add(layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(WEIGHT_DECAY)))
+    model.add(layers.Dense(32, activation='relu',
+                           kernel_regularizer=regularizers.l2(WEIGHT_DECAY)))
     model.add(layers.Dense(1))
-    adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-    model.compile(loss='mse', optimizer=adam, metrics=[root_mean_squared_error])
+    adam = optimizers.Adam(lr=0.001, beta_1=0.9,
+                           beta_2=0.999, epsilon=1e-08, decay=0.0)
+    model.compile(loss='mse', optimizer=adam,
+                  metrics=[root_mean_squared_error])
     model.summary()
     early_stopping = callbacks.EarlyStopping(
         monitor='val_loss',
@@ -134,6 +140,8 @@ if __name__ == '__main__':
 
         # Save out-of-fold and test predictions
         y_val = model.predict(tokens_idx[val_mask])
-        pd.Series(y_val[:,  0]).to_csv('folds/cnn_{}_val_{}.csv'.format(COLUMN, i), index=False)
+        pd.Series(y_val[:,  0]).to_csv(
+            'folds/cnn_{}_val_{}.csv'.format(COLUMN, i), index=False)
         y_test = model.predict(tokens_idx[~train_mask])
-        pd.Series(y_test[:,  0]).to_csv('folds/cnn_{}_test_{}.csv'.format(COLUMN, i), index=False)
+        pd.Series(y_test[:,  0]).to_csv(
+            'folds/cnn_{}_test_{}.csv'.format(COLUMN, i), index=False)
