@@ -9,7 +9,7 @@ COLUMN = 'title'
 TOKENIZER = nltk.tokenize.RegexpTokenizer('\w+|\$[\d\.]+|\S+')
 PUNCTUATION = str.maketrans({p: None for p in string.punctuation})
 EMBEDDING_SIZE = 100
-OUTPUT_FILE = 'features/custom_embeddings.vec'
+OUTPUT_FILE = 'features/custom_embeddings{}.vec'.format(COLUMN)
 
 
 def clean_and_tokenize(text):
