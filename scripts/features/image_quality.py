@@ -66,14 +66,18 @@ def compute_pixels_per_image(path):
     print('Number of errors: {}'.format(n_errors))
 
     features = pd.DataFrame.from_dict({
-        name: [n_pixels.get(name), sharpness.get(name), brightness.get(name), contrast.get(name)]
+        name: [n_pixels.get(name), sharpness.get(
+            name), brightness.get(name), contrast.get(name)]
         for name in names
     }, orient='index').reset_index()
-    features.columns = ['image', 'n_pixels', 'sharpness', 'brightness', 'contrast']
+    features.columns = ['image', 'n_pixels',
+                        'sharpness', 'brightness', 'contrast']
 
     return features
 
 
 if __name__ == '__main__':
-    compute_pixels_per_image('data/train_jpg.zip').to_csv('features/train/image_quality.csv', index=False)
-    compute_pixels_per_image('data/test_jpg.zip').to_csv('features/test/image_quality.csv', index=False)
+    compute_pixels_per_image(
+        'data/train_jpg.zip').to_csv('features/train/image_quality.csv', index=False)
+    compute_pixels_per_image(
+        'data/test_jpg.zip').to_csv('features/test/image_quality.csv', index=False)

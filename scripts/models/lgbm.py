@@ -61,7 +61,8 @@ def load_data(path_prefix):
     # Add description probas
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'description_likelihoods.csv')),
+        right=pd.read_csv(os.path.join(
+            path_prefix, 'description_likelihoods.csv')),
         how='left',
         on='item_id'
     )
@@ -155,7 +156,7 @@ for i in folds_item_ids.keys():
     name = 'folds/lgbm_test_{}.csv'.format(i)
     pd.Series(test_predict).to_csv(name, index=False)
 
-    print('Fold {} RMSE: {:.5f}'.format(int(i)+1, val_scores[i]))
+    print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[i]))
 
 # Show train and validation scores
 fit_mean = np.mean(list(fit_scores.values()))
@@ -169,7 +170,8 @@ print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
-sub['deal_probability'] = (sub['deal_probability'] / len(folds_item_ids)).clip(0, 1)
+sub['deal_probability'] = (sub['deal_probability'] /
+                           len(folds_item_ids)).clip(0, 1)
 sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,

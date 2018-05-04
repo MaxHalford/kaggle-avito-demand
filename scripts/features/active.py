@@ -9,8 +9,10 @@ dtype = {
 }
 train = pd.read_csv('data/train.csv.zip', usecols=cols, dtype=dtype)
 test = pd.read_csv('data/test.csv.zip', usecols=cols, dtype=dtype)
-train_active = pd.read_csv('data/train_active.csv.zip', usecols=cols, dtype=dtype)
-test_active = pd.read_csv('data/test_active.csv.zip', usecols=cols, dtype=dtype)
+train_active = pd.read_csv(
+    'data/train_active.csv.zip', usecols=cols, dtype=dtype)
+test_active = pd.read_csv('data/test_active.csv.zip',
+                          usecols=cols, dtype=dtype)
 
 print('Data is loaded (finally)')
 
@@ -18,7 +20,8 @@ train_features = train['item_id'].to_frame()
 test_features = test['item_id'].to_frame()
 
 # Is the user id in the supplementary data
-train_features['user_id_in_sup'] = train['user_id'].isin(train_active['user_id'])
+train_features['user_id_in_sup'] = train['user_id'].isin(
+    train_active['user_id'])
 test_features['user_id_in_sup'] = test['user_id'].isin(test_active['user_id'])
 
 # Is the title in the supplementary data

@@ -46,7 +46,8 @@ for model_name in model_names:
     X_train[model_name] = y_pred_train
     X_test[model_name] = np.array(y_pred_test).mean(axis=0)
 
-    print('{} has an average RMSE of {:.5f}'.format(model_name, rmse(y_pred_train, y_train)))
+    print('{} has an average RMSE of {:.5f}'.format(
+        model_name, rmse(y_pred_train, y_train)))
 
 # Choose meta-model
 meta_model = linear_model.LinearRegression()
@@ -70,4 +71,5 @@ for i, model_name in enumerate(model_names):
 # Make final predictions
 test = pd.read_csv('data/test.csv.zip')[['item_id']]
 test['deal_probability'] = meta_model.predict(X_test).clip(0, 1)
-test.to_csv('submissions/stacking_{:.5f}_{:.5f}.csv'.format(scores.mean(), scores.std()), index=False)
+test.to_csv(
+    'submissions/stacking_{:.5f}_{:.5f}.csv'.format(scores.mean(), scores.std()), index=False)
