@@ -32,4 +32,3 @@ data[train_mask].to_csv(
     'features/train/geocode.csv', index=False)
 data[~train_mask].to_csv(
     'features/test/geocode.csv', index=False)
-

@@ -76,6 +76,13 @@ def load_data(path_prefix):
         on='item_id'
     )
 
+    # Add city geocode
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'geocode.csv')),
+        how='left',
+        on='item_id'
+    )
     return data
 
 
