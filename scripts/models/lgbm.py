@@ -93,7 +93,7 @@ y_train = train['deal_probability']
 # Load test features
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
-sub['deal_probability'] = 0
+sub['deal_probability'] = 1
 X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
 
@@ -155,7 +155,7 @@ for i in folds_item_ids.keys():
     val_scores[i] = evals_result['val']['rmse'][-1]
     val_predict = model.predict(X_val)
     test_predict = model.predict(X_test)
-    sub['deal_probability'] += test_predict
+    sub['deal_probability'] *= test_predict
     feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
@@ -179,8 +179,8 @@ print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
-sub['deal_probability'] = (sub['deal_probability'] /
-                           len(folds_item_ids)).clip(0, 1)
+sub['deal_probability'] = (sub['deal_probability'] **
+                           (1 / len(folds_item_ids))).clip(0, 1)
 sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,

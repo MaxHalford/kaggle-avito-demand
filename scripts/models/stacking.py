@@ -6,6 +6,7 @@ import pandas as pd
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
+from scipy.stats.mstats import gmean
 
 
 def rmse(y_true, y_pred):
@@ -44,7 +45,7 @@ for model_name in model_names:
         y_pred_test.append(pd.read_csv(f, header=None)[0])
 
     X_train[model_name] = y_pred_train
-    X_test[model_name] = np.array(y_pred_test).mean(axis=0)
+    X_test[model_name] = gmean(np.array(y_pred_test, axis=0))
 
     print('{} has an average RMSE of {:.5f}'.format(
         model_name, rmse(y_pred_train, y_train)))
