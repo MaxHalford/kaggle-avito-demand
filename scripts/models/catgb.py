@@ -83,6 +83,7 @@ sub['deal_probability'] = 0
 X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
 # Determine the categorical features
+columns = X_test.columns
 cat_columns = X_test.select_dtypes(include=['object']).columns
 cat_features = []
 for i, col in enumerate(X_test.columns):
@@ -90,6 +91,7 @@ for i, col in enumerate(X_test.columns):
         cat_features.append(i)
         X_train[col] = X_train[col].fillna('nujabes')
         X_test[col] = X_test[col].fillna('nujabes')
+X_test = catboost.Pool(X_test, cat_features=cat_features)
 
 # Load folds
 with open('folds/folds_item_ids.json') as infile:
@@ -97,7 +99,6 @@ with open('folds/folds_item_ids.json') as infile:
 
 fit_scores = {}
 val_scores = {}
-feature_importances = pd.DataFrame(index=X_test.columns)
 
 
 def rmse(y_true, y_pred):
@@ -137,18 +138,18 @@ for i in folds_item_ids.keys():
         eval_set=val
     )
 
-    fit_scores[i] = model.evals_result['fit']['rmse'][-1]
-    val_scores[i] = model.evals_result['val']['rmse'][-1]
-    val_predict = model.predict(X_val)
+    fit_predict = model.predict(fit)
+    val_predict = model.predict(val)
     test_predict = model.predict(X_test)
+    fit_scores[i] = rmse(y_fit, fit_predict)
+    val_scores[i] = rmse(y_val, val_predict)
     sub['deal_probability'] += test_predict
-    feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
-    name = 'folds/lgbm_val_{}.csv'.format(i)
+    name = 'folds/catboost_val_{}.csv'.format(i)
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
-    name = 'folds/lgbm_test_{}.csv'.format(i)
+    name = 'folds/catboost_test_{}.csv'.format(i)
     pd.Series(test_predict).to_csv(name, index=False)
 
     print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[i]))
@@ -161,9 +162,6 @@ val_std = np.std(list(val_scores.values()))
 print('Fit RMSE: {:.5f} (±{:.5f})'.format(fit_mean, fit_std))
 print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
-# Save feature importances
-feature_importances.to_csv('feature_importances.csv')
-
 # Save submission
 sub['deal_probability'] = (sub['deal_probability'] /
                            len(folds_item_ids)).clip(0, 1)
@@ -174,5 +172,3 @@ sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     val_std
 )
 sub.to_csv(sub_name, index=False)
-
-# lgbm_vanilla_0.20387_0.00071_0.21960_0.00023.csv

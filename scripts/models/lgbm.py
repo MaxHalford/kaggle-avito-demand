@@ -110,11 +110,12 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
+depth = 6
 params = {
     'application': 'xentropy',
     'boosting_type': 'gbdt',
     'metric': 'rmse',
-    'num_leaves': 2 ** 6,
+    'num_leaves': 2 ** depth,
     'min_data_in_leaf': 30,
     'learning_rate': 0.03,
     'feature_fraction': 0.7,
@@ -158,10 +159,10 @@ for i in folds_item_ids.keys():
     feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
-    name = 'folds/lgbm_val_{}.csv'.format(i)
+    name = 'folds/lgbm_{}_val_{}.csv'.format(depth, i)
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
-    name = 'folds/lgbm_test_{}.csv'.format(i)
+    name = 'folds/lgbm_{}_test_{}.csv'.format(depth, i)
     pd.Series(test_predict).to_csv(name, index=False)
 
     print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[i]))
