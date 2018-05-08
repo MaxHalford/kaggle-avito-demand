@@ -93,7 +93,7 @@ y_train = train['deal_probability']
 # Load test features
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
-sub['deal_probability'] = 0
+sub['deal_probability'] = 1
 X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
 
