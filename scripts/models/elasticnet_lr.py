@@ -86,22 +86,66 @@ def load_data(path_prefix):
     return data
 
 
-def preprocessing_sklearn(df):
-    
+def preprocessing_sklearn(train, test):
+    """Preprocessing for sklearn input.
+    Parameters
+    ----------
+    train : type
+        DataFrame.
+    test : type
+        DataFrame.
 
-    return df
-# Load train features
+    Returns
+    -------
+    type
+        (DataFrame,DataFrame).
+
+    """
+
+    data = pd.concat([train, test], axis='rows')
+    train_mask = data['deal_probability'].notnull()
+
+    data['price'] = data.groupby('category_name')[
+        'price'].transform(lambda x: x.fillna(x.mean()))
+
+    data['category_price_diff'].fillna(0, inplace=True)
+    data['image_top_1'].fillna(0, inplace=True)
+
+    boolean_col = ['no_price', 'title_in_sup', 'round_price', 'user_id_in_sup']
+    data[boolean_col] = data[boolean_col].astype(int)
+
+    data = pd.get_dummies(
+        data, columns=['category_name', 'parent_category_name', 'user_type'])
+    param_to_fill = ['param_1', 'param_2', 'param_3']
+
+    for param in param_to_fill:
+
+        data[param].fillna('Nujabes we miss you', inplace=True)
+        data = data.join(data.groupby(param)['deal_probability'].mean().rename(
+            param + '_mean'), on=param)
+        data.drop([param], axis='columns', inplace=True)
+        # we still have 76 nan so we replace them with the mean
+        data[param + '_mean'].fillna(data[param +
+                                          '_mean'].mean(), inplace=True)
+
+    return data[train_mask], data[~train_mask]
+
+
+# Load train/test features
 train = load_data('features/train')
-train = preprocessing_sklearn(train)
+test = load_data('features/test')
+train, test = preprocessing_sklearn(train, test)
+
 X_train = train.drop(['deal_probability', 'image'], axis='columns')
 y_train = train['deal_probability']
 
-# Load test features
-test = load_data('features/test')
-test = preprocessing_sklearn(test)
-sub = test[['item_id', 'deal_probability']].copy()
-sub['deal_probability'] = 0
 X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
+
+X_test.isnull().sum()
+
+sub = test[['item_id', 'deal_probability']].copy()
+sub['deal_probability'] = 1
+
 
 # Load folds
 with open('folds/folds_item_ids.json') as infile:
@@ -130,11 +174,12 @@ for i in folds_item_ids.keys():
 
     model.fit(X_fit, y_fit)
 
+    fit_predict = model.predict(X_fit)
     val_predict = model.predict(X_val)
     test_predict = model.predict(X_test)
-    fit_scores.append(rmse(y_fit, val_predict))
-    val_scores.append(rmse(y_val, test_predict))
-    sub['deal_probability'] += test_predict
+    fit_scores.append(rmse(y_fit, fit_predict))
+    val_scores.append(rmse(y_val, val_predict))
+    sub['deal_probability'] *= test_predict
 
     # Save out-of-fold predictions
     name = 'folds/elasticnet_lr_val_{}.csv'.format(i)
@@ -143,25 +188,28 @@ for i in folds_item_ids.keys():
     name = 'folds/elasticnet_lr_test_{}.csv'.format(i)
     pd.Series(test_predict).to_csv(name, index=False)
 
-    print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[i]))
+    print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[int(i)]))
 
 # Show train and validation scores
-fit_mean = np.mean(fit_scores.values())
-fit_std = np.std(fit_scores.values())
-val_mean = np.mean(val_scores.values())
-val_std = np.std(val_scores.values())
+fit_mean = np.mean(fit_scores)
+fit_std = np.std(fit_scores)
+val_mean = np.mean(val_scores)
+val_std = np.std(val_scores)
 print('Fit RMSE: {:.5f} (±{:.5f})'.format(fit_mean, fit_std))
 print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
 
 # Save submission
-sub['deal_probability'] = (sub['deal_probability'] /
-                           len(folds_item_ids)).clip(0, 1)
+
+sub['deal_probability'] = (sub['deal_probability'] **
+                           (1 / len(folds_item_ids))).clip(0, 1)
 sub_name = 'submissions/elasticnet_lr_test_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,
     val_mean,
     val_std
+
+
 )
 
 sub.to_csv(sub_name, index=False)
