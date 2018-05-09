@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn.linear_model import ElasticNet
+from sklearn.ensemble import ExtraTreesRegressor
 
 
 # Yo, science, bitch
@@ -159,7 +159,7 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
-model = ElasticNet(alpha=1.0, l1_ratio=0, max_iter=2000, tol=0.001)
+model = ExtraTreesRegressor(n_estimators=100, max_features=0.7, max_depth=10)
 
 
 for i in folds_item_ids.keys():
@@ -172,7 +172,8 @@ for i in folds_item_ids.keys():
     X_val = X_train[val_mask].drop('item_id', axis='columns')
     y_val = y_train[val_mask]
 
-    model.fit(X_fit, y_fit)
+    # trick for ram saving
+    model.fit(X_fit.astype(dtype='float32'), y_fit.astype(dtype='float32'))
 
     fit_predict = model.predict(X_fit)
     val_predict = model.predict(X_val)
@@ -182,10 +183,10 @@ for i in folds_item_ids.keys():
     sub['deal_probability'] *= test_predict
 
     # Save out-of-fold predictions
-    name = 'folds/elasticnet_lr_val_{}.csv'.format(i)
+    name = 'folds/extra_tree_val_{}.csv'.format(i)
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
-    name = 'folds/elasticnet_lr_test_{}.csv'.format(i)
+    name = 'folds/extra_tree_test_{}.csv'.format(i)
     pd.Series(test_predict).to_csv(name, index=False)
 
     print('Fold {} val RMSE: {:.5f}'.format(int(i) + 1, val_scores[int(i)]))
@@ -204,7 +205,7 @@ print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
 sub['deal_probability'] = (sub['deal_probability'] **
                            (1 / len(folds_item_ids))).clip(0, 1)
-sub_name = 'submissions/elasticnet_lr_test_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
+sub_name = 'submissions/extra_tree_test_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,
     val_mean,
