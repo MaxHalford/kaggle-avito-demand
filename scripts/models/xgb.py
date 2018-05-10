@@ -191,7 +191,7 @@ for i in folds_item_ids.keys():
                       watchlist,
                       evals_result=evals_result,
                       maximize=False,
-                      verbose_eval=True,
+                      verbose_eval=50,
                       early_stopping_rounds=50)
 
     fit_scores[i] = evals_result['fit']['rmse'][-1]
