@@ -88,7 +88,7 @@ The general idea being that we want to get a rough idea of the quality of each i
 
 `imagenet.py`
 
-We used the keras version of the pre-trained model [Xception](https://github.com/keras-team/keras/blob/master/keras/applications/xception.py) to recognize objetcs on picture. Xception take as input an image and return labels of objects with the probability associated. 
+We used the keras version of the pre-trained model [Xception](https://github.com/keras-team/keras/blob/master/keras/applications/xception.py) to recognize objects on images. Xception take as input an image and return labels of objects with the probability associated. 
 
 We have some hypotheses about the output probabilities of the algorithm.
 
