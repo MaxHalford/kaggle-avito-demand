@@ -1,10 +1,11 @@
 import json
 import os
 
+
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn.linear_model import ElasticNet
+import xgboost as xgb
 
 
 # Yo, science, bitch
@@ -141,7 +142,6 @@ y_train = train['deal_probability']
 
 X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
-X_test.isnull().sum()
 
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 1
@@ -151,15 +151,24 @@ sub['deal_probability'] = 1
 with open('folds/folds_item_ids.json') as infile:
     folds_item_ids = json.load(infile)
 
-fit_scores = []
-val_scores = []
+fit_scores = {}
+val_scores = {}
+feature_importances = pd.DataFrame(index=X_test.columns)
 
 
 def rmse(y_true, y_pred):
-    return metrics.mean_squared_error(y_true, y_pred) ** 0.5
+
+    labels = y_pred.get_label()
+    labels = np.asarray(labels, dtype=float)
+
+    return metrics.mean_squared_error(y_true, labels) ** 0.5
 
 
-model = ElasticNet(alpha=1.0, l1_ratio=0, max_iter=2000, tol=0.001)
+depth = 6
+params = {'objective': 'reg:logistic',
+          'booster': 'gbtree', 'max_depth': depth, 'eval_metric': 'rmse'}
+
+num_rounds = 30000
 
 
 for i in folds_item_ids.keys():
@@ -171,46 +180,54 @@ for i in folds_item_ids.keys():
     y_fit = y_train[fit_mask]
     X_val = X_train[val_mask].drop('item_id', axis='columns')
     y_val = y_train[val_mask]
+    fit = xgb.DMatrix(X_fit.values, y_fit.values)
+    val = xgb.DMatrix(X_val.values, y_val.values)
 
-    model.fit(X_fit, y_fit)
+    evals_result = {}
+    watchlist = [(val, 'val'), (fit, 'fit')]
+    model = xgb.train(params,
+                      fit,
+                      num_rounds,
+                      watchlist,
+                      evals_result=evals_result,
+                      maximize=False,
+                      verbose_eval=50,
+                      early_stopping_rounds=50)
 
-    fit_predict = model.predict(X_fit)
+    fit_scores[i] = evals_result['fit']['rmse'][-1]
+    val_scores[i] = evals_result['val']['rmse'][-1]
     val_predict = model.predict(X_val)
     test_predict = model.predict(X_test)
-    fit_scores.append(rmse(y_fit, fit_predict))
-    val_scores.append(rmse(y_val, val_predict))
     sub['deal_probability'] *= test_predict
+    feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
-    name = 'folds/elasticnet_lr_val_{}.csv'.format(i)
+    name = 'folds/xgb_{}_val_{}.csv'.format(depth, i)
     pd.Series(val_predict).to_csv(name, index=False)
     # Save test predictions
-    name = 'folds/elasticnet_lr_test_{}.csv'.format(i)
+    name = 'folds/xgb_{}_test_{}.csv'.format(depth, i)
     pd.Series(test_predict).to_csv(name, index=False)
 
-    print('Fold {} val RMSE: {:.5f}'.format(int(i) + 1, val_scores[int(i)]))
-    print('Fold {} fit RMSE: {:.5f}'.format(int(i) + 1, fit_scores[int(i)]))
+    print('Fold {} RMSE: {:.5f}'.format(int(i) + 1, val_scores[i]))
 
 # Show train and validation scores
-fit_mean = np.mean(fit_scores)
-fit_std = np.std(fit_scores)
-val_mean = np.mean(val_scores)
-val_std = np.std(val_scores)
+fit_mean = np.mean(list(fit_scores.values()))
+fit_std = np.std(list(fit_scores.values()))
+val_mean = np.mean(list(val_scores.values()))
+val_std = np.std(list(val_scores.values()))
 print('Fit RMSE: {:.5f} (±{:.5f})'.format(fit_mean, fit_std))
 print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
+# Save feature importances
+feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
-
 sub['deal_probability'] = (sub['deal_probability'] **
                            (1 / len(folds_item_ids))).clip(0, 1)
-sub_name = 'submissions/elasticnet_lr_test_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
+sub_name = 'submissions/xgb_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,
     val_mean,
     val_std
-
-
 )
-
 sub.to_csv(sub_name, index=False)
