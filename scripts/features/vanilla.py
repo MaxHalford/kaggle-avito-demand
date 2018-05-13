@@ -30,9 +30,6 @@ data = data.join(data.groupby('title').size().rename('title_n_ads').astype('uint
 # Activation date day of the week
 data['activation_dow'] = data['activation_date'].dt.dayofweek
 
-# No price is indicated
-data['no_price'] = data['price'].isnull()
-
 # Is the price a round price (e.g. 100 or 1000, not 42 or 1337)
 data['round_price'] = data['price'].map(
     lambda x: str(int(x)).endswith('0')
@@ -65,6 +62,11 @@ data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'
 # Difference between the item's price and it's category's median price
 median_prices_per_cat = data.groupby('category_name')['price'].median()
 data['category_price_diff'] = data['price'] - data['category_name'].map(median_prices_per_cat)
+
+# Fill param values
+data['param_1'] = data['param_1'].fillna('missing')
+data['param_2'] = data['param_2'].fillna('missing')
+data['param_3'] = data['param_3'].fillna('missing')
 
 # Drop unneeded columns
 cols_to_drop = ['title', 'description', 'activation_date', 'user_id',

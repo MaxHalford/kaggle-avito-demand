@@ -6,7 +6,6 @@ import pandas as pd
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
-from scipy.stats.mstats import gmean
 
 
 def rmse(y_true, y_pred):
@@ -15,8 +14,15 @@ def rmse(y_true, y_pred):
 
 # Choose which models to use
 model_names = [
-    'lgbm',
-    'random_forest'
+    'max_lgbm',
+    'lgbm_2',
+    'lgbm_6',
+    'lgbm_10',
+    'catboost',
+    'cnn_title',
+    'extra_tree',
+    'max_means',
+    'NN'
 ]
 
 # Load the true labels in the right order
@@ -39,16 +45,21 @@ for model_name in model_names:
     y_pred_test = []
 
     for f in sorted(glob.glob('folds/{}_val_*.csv'.format(model_name))):
-        y_pred_train.extend(pd.read_csv(f, header=None)[0])
+        y_pred_train.extend(pd.read_csv(f, header=None)[0].clip(0, 1))
 
     for f in sorted(glob.glob('folds/{}_test_*.csv'.format(model_name))):
-        y_pred_test.append(pd.read_csv(f, header=None)[0])
+        y_pred_test.append(pd.read_csv(f, header=None)[0].clip(0, 1))
 
     X_train[model_name] = y_pred_train
-    X_test[model_name] = gmean(np.array(y_pred_test, axis=0))
+    X_test[model_name] = np.array(y_pred_test).mean(axis=0)
 
     print('{} has an average RMSE of {:.5f}'.format(
         model_name, rmse(y_pred_train, y_train)))
+
+
+print(X_train.corr())
+
+print(X_test.corr())
 
 # Choose meta-model
 meta_model = linear_model.LinearRegression()

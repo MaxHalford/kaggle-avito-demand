@@ -82,6 +82,18 @@ def load_data(path_prefix):
         how='left',
         on='item_id'
     )
+
+    # Add imagenet features
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(
+            os.path.join(path_prefix, 'imagenet.csv'),
+            usecols=['image', 'mean_probability', 'std_probability', 'object_0_probability']
+        ),
+        how='left',
+        on='image'
+    )
+
     return data
 
 
@@ -110,7 +122,7 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
-depth = 6
+depth = 10
 params = {
     'application': 'xentropy',
     'boosting_type': 'gbdt',
@@ -125,6 +137,8 @@ params = {
     'lambda_l2': 2,
     'verbosity': 1
 }
+
+print(X_train.dtypes)
 
 
 for i in folds_item_ids.keys():

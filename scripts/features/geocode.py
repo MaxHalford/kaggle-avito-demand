@@ -20,7 +20,7 @@ del locs_df
 
 most_common_city = data.location.mode()[0]  # Most frequent location
 
-most_common_location = data.query('location == {}'.format(most_common_city))[['lat', 'lon']]
+most_common_location = data.query('location == "{}"'.format(most_common_city))[['lat', 'lon']].iloc[0]
 data['lat'].fillna(float(most_common_location['lat']), inplace=True)
 data['lon'].fillna(float(most_common_location['lon']), inplace=True)
 
