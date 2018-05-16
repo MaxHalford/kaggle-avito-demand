@@ -1,4 +1,5 @@
 import re
+import string
 
 import numpy as np
 import pandas as pd
@@ -15,18 +16,6 @@ data = pd.concat(
 # Number of null values per row
 data['n_missing'] = data.isnull().sum(axis='columns').astype('uint8')
 
-# Number of adds per user
-data = data.join(data.groupby('user_id').size().rename('user_n_ads').astype('uint'), on='user_id')
-
-# Number of adds per city
-data = data.join(data.groupby('city').size().rename('city_n_ads').astype('uint'), on='city')
-
-# Number of adds per region
-data = data.join(data.groupby('region').size().rename('region_n_ads').astype('uint'), on='region')
-
-# Number of adds per title
-data = data.join(data.groupby('title').size().rename('title_n_ads').astype('uint'), on='title')
-
 # Activation date day of the week
 data['activation_dow'] = data['activation_date'].dt.dayofweek
 
@@ -38,35 +27,37 @@ data['round_price'] = data['price'].map(
 )
 
 # Number of characters in the description
-data['description_n_characters'] = data['description'].fillna('').map(len).astype('uint')
+data['desc_n_characters'] = data['description'].fillna('').map(len).astype('uint')
+
+# Number of punctuation symbols in the description
+data['desc_n_punctuation'] = data['description'].fillna('').apply(lambda x: sum(1 for c in x if c in string.punctuation))
+
+# Percentage of punctuation symbols in the description
+data['desc_punctuation_ratio'] = (data['desc_n_punctuation'] / data['desc_n_characters']).fillna(0)
 
 # Percentage of uppercase letters in the description
-data['description_upper_ratio'] = data['description'].fillna('')\
+data['desc_upper_ratio'] = data['description'].fillna('')\
                                                      .str.replace(' ', '')\
                                                      .map(lambda x: sum(l.isupper() for l in x) / (len(x) + 1))
 
 # Number of words in the description
-data['description_n_words'] = data['description'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
+data['desc_n_words'] = data['description'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
 # Number of characters in the title
-data['title_n_characters'] = data['title'].fillna('').map(len).astype('uint')
+data['title_n_characters'] = data['title'].map(len).astype('uint')
+
+# Number of punctuation symbols in the title
+data['title_n_punctuation'] = data['title'].apply(lambda x: sum(1 for c in x if c in string.punctuation))
+
+# Percentage of punctuation symbols in the title
+data['title_punctuation_ratio'] = data['title_n_punctuation'] / data['title_n_characters']
 
 # Percentage of uppercase letters in the title
-data['title_upper_ratio'] = data['title'].fillna('')\
-                                         .str.replace(' ', '')\
+data['title_upper_ratio'] = data['title'].str.replace(' ', '')\
                                          .map(lambda x: sum(l.isupper() for l in x) / (len(x) + 1))
 
 # Number of words in the title
-data['title_n_words'] = data['title'].fillna('').map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
-
-# Difference between the item's price and it's category's median price
-median_prices_per_cat = data.groupby('category_name')['price'].median()
-data['category_price_diff'] = data['price'] - data['category_name'].map(median_prices_per_cat)
-
-# Fill param values
-data['param_1'] = data['param_1'].fillna('missing')
-data['param_2'] = data['param_2'].fillna('missing')
-data['param_3'] = data['param_3'].fillna('missing')
+data['title_n_words'] = data['title'].map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
 # Drop unneeded columns
 cols_to_drop = ['title', 'description', 'activation_date', 'user_id',
@@ -74,6 +65,6 @@ cols_to_drop = ['title', 'description', 'activation_date', 'user_id',
 data.drop(cols_to_drop, axis='columns', inplace=True)
 
 # Save the features
-is_train = data['deal_probability'].notnull()
-data[is_train].to_csv('features/train/vanilla.csv', index=False)
-data[~is_train].to_csv('features/test/vanilla.csv', index=False)
+train_mask = data['deal_probability'].notnull()
+data[train_mask].to_csv('features/train/vanilla.csv', index=False)
+data[~train_mask].to_csv('features/test/vanilla.csv', index=False)

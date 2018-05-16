@@ -18,11 +18,13 @@ model_names = [
     'lgbm_2',
     'lgbm_6',
     'lgbm_10',
+    'lgbm_13',
     'catboost',
     'cnn_title',
     'extra_tree',
     'max_means',
-    'NN'
+    'NN',
+    'xgb_6'
 ]
 
 # Load the true labels in the right order

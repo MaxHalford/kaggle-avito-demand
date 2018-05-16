@@ -12,7 +12,7 @@ def image_sharpness(img):
     gray = img.convert('L')
     array = np.asarray(gray, dtype=np.int32)
     gy, gx = np.gradient(array)
-    gnorm = np.sqrt(gx**2 + gy**2)
+    gnorm = np.sqrt(gx * gx + gy * gy)
     sharpness = np.average(gnorm)
     return sharpness
 

@@ -27,14 +27,13 @@ def load_data(path_prefix):
         }
     )
 
-    # Add number of pixels per image
+    # Add image quality
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'n_pixels.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'image_quality.csv')),
         how='left',
         on='image'
     )
-    data['n_pixels'].fillna(-1, inplace=True)
 
     # Add title SVD components
     data = pd.merge(
@@ -55,7 +54,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
         how='left',
         on='item_id'
     )

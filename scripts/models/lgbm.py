@@ -20,6 +20,7 @@ def load_data(path_prefix):
             'category_name': 'category',
             'parent_category_name': 'category',
             'user_type': 'category',
+            'image_top_1': 'category',
             'param_1': 'category',
             'param_2': 'category',
             'param_3': 'category'
@@ -45,7 +46,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
         how='left',
         on='item_id'
     )
@@ -83,17 +84,6 @@ def load_data(path_prefix):
         on='item_id'
     )
 
-    # Add imagenet features
-    data = pd.merge(
-        left=data,
-        right=pd.read_csv(
-            os.path.join(path_prefix, 'imagenet.csv'),
-            usecols=['image', 'mean_probability', 'std_probability', 'object_0_probability']
-        ),
-        how='left',
-        on='image'
-    )
-
     return data
 
 
@@ -122,12 +112,14 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
-depth = 10
+depth = 13
 params = {
     'application': 'xentropy',
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** depth,
+    'min_data_per_group': 1000,
+    'cat_smooth': 100,
     'min_data_in_leaf': 30,
     'learning_rate': 0.03,
     'feature_fraction': 0.7,
@@ -137,8 +129,6 @@ params = {
     'lambda_l2': 2,
     'verbosity': 1
 }
-
-print(X_train.dtypes)
 
 
 for i in folds_item_ids.keys():
