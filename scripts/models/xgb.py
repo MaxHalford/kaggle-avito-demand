@@ -169,6 +169,7 @@ params = {'objective': 'reg:logistic',
 
 num_rounds = 30000
 
+X_test = xgb.DMatrix(X_test.as_matrix())
 
 for i in folds_item_ids.keys():
 
@@ -179,11 +180,11 @@ for i in folds_item_ids.keys():
     y_fit = y_train[fit_mask]
     X_val = X_train[val_mask].drop('item_id', axis='columns')
     y_val = y_train[val_mask]
-    fit = xgb.DMatrix(X_fit.values, y_fit.values)
-    val = xgb.DMatrix(X_val.values, y_val.values)
+    fit = xgb.DMatrix(X_fit.as_matrix(), y_fit.as_matrix())
+    val = xgb.DMatrix(X_val.as_matrix(), y_val.as_matrix())
 
     evals_result = {}
-    watchlist = [(val, 'val'), (fit, 'fit')]
+    watchlist = [(fit, 'fit'), (val, 'val')]
     model = xgb.train(params,
                       fit,
                       num_rounds,
@@ -195,10 +196,9 @@ for i in folds_item_ids.keys():
 
     fit_scores[i] = evals_result['fit']['rmse'][-1]
     val_scores[i] = evals_result['val']['rmse'][-1]
-    val_predict = model.predict(X_val)
+    val_predict = model.predict(val)
     test_predict = model.predict(X_test)
     sub['deal_probability'] *= test_predict
-    feature_importances[i] = model.feature_importance()
 
     # Save out-of-fold predictions
     name = 'folds/xgb_{}_val_{}.csv'.format(depth, i)
@@ -217,8 +217,6 @@ val_std = np.std(list(val_scores.values()))
 print('Fit RMSE: {:.5f} (±{:.5f})'.format(fit_mean, fit_std))
 print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 
-# Save feature importances
-feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
 sub['deal_probability'] = (sub['deal_probability'] **
