@@ -20,11 +20,18 @@ def load_data(path_prefix):
             'category_name': 'category',
             'parent_category_name': 'category',
             'user_type': 'category',
-            'image_top_1': 'category',
             'param_1': 'category',
             'param_2': 'category',
             'param_3': 'category'
         }
+    )
+
+    # Add image quality
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'image_quality.csv')),
+        how='left',
+        on='image'
     )
 
     # Add title SVD components
@@ -46,7 +53,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
         how='left',
         on='item_id'
     )
@@ -68,14 +75,6 @@ def load_data(path_prefix):
         on='item_id'
     )
 
-    # Add image quality
-    data = pd.merge(
-        left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'image_quality.csv')),
-        how='left',
-        on='image'
-    )
-
     # Add city geocode
     data = pd.merge(
         left=data,
@@ -84,6 +83,11 @@ def load_data(path_prefix):
         on='item_id'
     )
 
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv('features/aggregated_features.csv'),
+        how='left',
+        on='user_id')
     return data
 
 
