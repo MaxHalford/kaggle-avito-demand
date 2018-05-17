@@ -61,7 +61,7 @@ def perform_color_analysis(img):
     
     except Exception as e:
         
-        return None
+        return None, None
 
     light_percent = (light_percent1 + light_percent2)/2 
     dark_percent = (dark_percent1 + dark_percent2)/2 
@@ -148,7 +148,7 @@ def compute_pixels_per_image(path):
     print('Number of errors: {}'.format(n_errors))
                 
     df = export_features(image_property)
-    
+
     return df 
 
 if __name__ == '__main__':
