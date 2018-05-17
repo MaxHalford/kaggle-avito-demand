@@ -60,7 +60,7 @@ data['title_upper_ratio'] = data['title'].str.replace(' ', '')\
 data['title_n_words'] = data['title'].map(lambda x: len(re.findall(r'\w+', x))).astype('uint')
 
 # Drop unneeded columns
-cols_to_drop = ['title', 'description', 'activation_date',
+cols_to_drop = ['title', 'description', 'activation_date', 'user_id',
                 'region', 'city']
 data.drop(cols_to_drop, axis='columns', inplace=True)
 

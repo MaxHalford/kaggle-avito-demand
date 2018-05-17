@@ -54,7 +54,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
         how='left',
         on='item_id'
     )
@@ -83,12 +83,6 @@ def load_data(path_prefix):
         how='left',
         on='item_id'
     )
-
-    data = pd.merge(
-        left=data,
-        right=pd.read_csv('features/aggregated_features.csv'),
-        how='left',
-        on='user_id')
     return data
 
 
@@ -114,14 +108,10 @@ def preprocessing_sklearn(train, test):
     data['price'] = data.groupby('category_name')[
         'price'].transform(lambda x: x.fillna(x.mean()))
 
-    #data['category_price_diff'].fillna(0, inplace=True)
-    img_fill = ['image_top_1', 'n_pixels',
-                'sharpness', 'brightness', 'contrast']
-    for img in img_fill:
-        data[img].fillna(0, inplace=True)
+    data['category_price_diff'].fillna(0, inplace=True)
+    data['image_top_1'].fillna(0, inplace=True)
 
-    #boolean_col = ['no_price', 'title_in_sup', 'round_price', 'user_id_in_sup']
-    boolean_col = ['title_in_sup', 'round_price', 'user_id_in_sup']
+    boolean_col = ['no_price', 'title_in_sup', 'round_price', 'user_id_in_sup']
     data[boolean_col] = data[boolean_col].astype(int)
 
     data = pd.get_dummies(
@@ -137,10 +127,7 @@ def preprocessing_sklearn(train, test):
         # we still have 76 nan so we replace them with the mean
         data[param + '_mean'].fillna(data[param +
                                           '_mean'].mean(), inplace=True)
-    user_features_to_fill = ['avg_days_up_user',
-                             'avg_times_up_user', 'n_user_items']
-    for feature in user_features_to_fill:
-        data[feature].fillna(data[feature].median(), inplace=True)
+
     return data[train_mask], data[~train_mask]
 
 
