@@ -3,6 +3,7 @@ import json
 
 import numpy as np
 import pandas as pd
+from sklearn import isotonic
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
@@ -17,6 +18,7 @@ model_names = [
     'max_lgbm',
     'lgbm_2',
     'lgbm_6',
+    'lgbm_8',
     'lgbm_10',
     'lgbm_13',
     'catboost',
@@ -35,11 +37,14 @@ with open('folds/folds_item_ids.json') as infile:
 
 y_train = pd.read_csv('data/train.csv.zip')[['item_id', 'deal_probability']]\
             .set_index('item_id')\
-            .loc[item_ids]
+            .loc[item_ids]['deal_probability']
 
 # Load the out-of-fold predictions
 X_train = pd.DataFrame()
 X_test = pd.DataFrame()
+
+# Applying isotonic regression to each set of predictions helps a wee bit
+iso = isotonic.IsotonicRegression(y_min=0, y_max=1)
 
 for model_name in model_names:
 
@@ -52,11 +57,13 @@ for model_name in model_names:
     for f in sorted(glob.glob('folds/{}_test_*.csv'.format(model_name))):
         y_pred_test.append(pd.read_csv(f, header=None)[0].clip(0, 1))
 
-    X_train[model_name] = y_pred_train
-    X_test[model_name] = np.array(y_pred_test).mean(axis=0)
+    y_pred_train = np.array(y_pred_train)
+    iso.fit(y_pred_train, y_train)
 
-    print('{} has an average RMSE of {:.5f}'.format(
-        model_name, rmse(y_pred_train, y_train)))
+    X_train[model_name] = iso.transform(y_pred_train)
+    X_test[model_name] = iso.transform(np.array(y_pred_test).mean(axis=0))
+
+    print('{} has an average RMSE of {:.5f}'.format(model_name, rmse(y_train, X_train[model_name])))
 
 
 print(X_train.corr())
@@ -64,7 +71,7 @@ print(X_train.corr())
 print(X_test.corr())
 
 # Choose meta-model
-meta_model = linear_model.LinearRegression()
+meta_model = linear_model.Ridge()
 
 # Determine the CV score of the meta-model for the lolz
 cv = model_selection.KFold(n_splits=5, shuffle=True, random_state=42)
@@ -78,9 +85,9 @@ print('Meta-model RMSE: {:.5f} (±{:.5f})'.format(scores.mean(), scores.std()))
 
 # Train the model on all the data
 meta_model.fit(X_train, y_train)
-print('Intercept: {:.5f}'.format(meta_model.intercept_[0]))
+print('Intercept: {:.5f}'.format(meta_model.intercept_))
 for i, model_name in enumerate(model_names):
-    print('{} coefficient: {:.5f}'.format(model_name, meta_model.coef_[0][i]))
+    print('{} coefficient: {:.5f}'.format(model_name, meta_model.coef_[i]))
 
 # Make final predictions
 test = pd.read_csv('data/test.csv.zip')[['item_id']]

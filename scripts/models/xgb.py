@@ -54,7 +54,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
         how='left',
         on='item_id'
     )
@@ -83,6 +83,14 @@ def load_data(path_prefix):
         how='left',
         on='item_id'
     )
+
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv('features/aggregated_features.csv'),
+        how='left',
+        on='user_id'
+    )
+
     return data
 
 

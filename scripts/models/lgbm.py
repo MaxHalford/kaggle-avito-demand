@@ -46,7 +46,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
         how='left',
         on='item_id'
     )
@@ -84,19 +84,38 @@ def load_data(path_prefix):
         on='item_id'
     )
 
+    # Add imagenet
+    # data = pd.merge(
+    #     left=data,
+    #     right=pd.read_csv(
+    #         os.path.join(path_prefix, 'imagenet.csv'),
+    #         usecols=['image', 'mean_probability', 'std_probability', 'object_0', 'object_0_probability'],
+    #         dtype={'object_0': 'category'}
+    #     ),
+    #     how='left',
+    #     on='image'
+    # )
+
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv('features/aggregated_features.csv'),
+        how='left',
+        on='user_id'
+    )
+
     return data
 
 
 # Load train features
 train = load_data('features/train')
-X_train = train.drop(['deal_probability', 'image'], axis='columns')
+X_train = train.drop(['deal_probability', 'image', 'user_id'], axis='columns')
 y_train = train['deal_probability']
 
 # Load test features
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 1
-X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
+X_test = test.drop(['deal_probability', 'image', 'item_id', 'user_id'], axis='columns')
 
 
 # Load folds
@@ -112,16 +131,16 @@ def rmse(y_true, y_pred):
     return metrics.mean_squared_error(y_true, y_pred) ** 0.5
 
 
-depth = 13
+depth = 6
 params = {
     'application': 'xentropy',
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** depth,
     'min_data_per_group': 1000,
-    'cat_smooth': 100,
+    'cat_smooth': 200,
     'min_data_in_leaf': 30,
-    'learning_rate': 0.03,
+    'learning_rate': 0.05,
     'feature_fraction': 0.7,
     'bagging_fraction': 0.7,
     'bagging_seed': 42,

@@ -38,7 +38,7 @@ def load_data(path_prefix):
     # Add active features
     data = pd.merge(
         left=data,
-        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')).drop(['city', 'region', 'deal_probability'], axis='columns'),
+        right=pd.read_csv(os.path.join(path_prefix, 'active.csv')),
         how='left',
         on='item_id'
     )
@@ -68,6 +68,13 @@ def load_data(path_prefix):
         on='image'
     )
 
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv('features/aggregated_features.csv'),
+        how='left',
+        on='user_id'
+    )
+
     return data
 
 
@@ -84,7 +91,7 @@ X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
 
 # Determine the categorical features
 columns = X_test.columns
-cat_columns = X_test.select_dtypes(include=['object']).columns
+cat_columns = X_test.select_dtypes(include=['object', 'category']).columns
 cat_features = []
 for i, col in enumerate(X_test.columns):
     if col in cat_columns:
