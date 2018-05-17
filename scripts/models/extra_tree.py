@@ -142,15 +142,17 @@ def preprocessing_sklearn(train, test):
         data[feature].fillna(data[feature].median(), inplace=True)
     return data[train_mask], data[~train_mask]
 
+
 # Load train/test features
 train = load_data('features/train')
 test = load_data('features/test')
 train, test = preprocessing_sklearn(train, test)
 
-X_train = train.drop(['deal_probability', 'image'], axis='columns')
+X_train = train.drop(['deal_probability', 'image', 'user_id'], axis='columns')
 y_train = train['deal_probability']
 
-X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
+X_test = test.drop(['deal_probability', 'image',
+                    'item_id', 'user_id'], axis='columns')
 
 
 sub = test[['item_id', 'deal_probability']].copy()

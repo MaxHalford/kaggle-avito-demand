@@ -94,14 +94,15 @@ def load_data(path_prefix):
 
 # Load train features
 train = load_data('features/train')
-X_train = train.drop(['deal_probability', 'image'], axis='columns')
+X_train = train.drop(['deal_probability', 'image', 'user_id'], axis='columns')
 y_train = train['deal_probability']
 
 # Load test features
 test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 0
-X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
+X_test = test.drop(['deal_probability', 'image',
+                    'item_id', 'user_id'], axis='columns')
 
 # Determine the categorical features
 columns = X_test.columns
