@@ -21,7 +21,7 @@ def image_blurness(pixels):
 def compute_pixels_per_image(read_path, write_path):
 
     archive = zipfile.ZipFile(read_path, 'r')
-    files = [f for f in archive.namelist() if f.endswith('.jpg')][:10]
+    files = [f for f in archive.namelist() if f.endswith('.jpg')]
     names = [os.path.basename(f).split('.')[0] for f in files]
 
     image_property = {}
