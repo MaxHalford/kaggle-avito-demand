@@ -116,11 +116,16 @@ def preprocessing_sklearn(train, test):
     data['price'] = data.groupby('category_name')[
         'price'].transform(lambda x: x.fillna(x.mean()))
 
-    data['category_price_diff'].fillna(0, inplace=True)
-    data['image_top_1'].fillna(0, inplace=True)
-
-    boolean_col = ['no_price', 'title_in_sup', 'round_price', 'user_id_in_sup']
-    data[boolean_col] = data[boolean_col].astype(int)
+    #data['category_price_diff'].fillna(0, inplace=True)
+    image_to_fill = ['image_top_1','n_pixels','sharpness','brightness','contrast']
+    for img in image_to_fill:
+        data[img].fillna(0, inplace=True)
+    user_info_fill = ['avg_days_up_user','avg_times_up_user','n_user_items']
+    for info in user_info_fill:
+        data[info].fillna(data[info].median(),inplace=True)
+        
+    #boolean_col = ['no_price', 'title_in_sup', 'round_price', 'user_id_in_sup']
+    data['round_price'] = data['round_price'].astype(int)
 
     data = pd.get_dummies(
         data, columns=['category_name', 'parent_category_name', 'user_type'])
@@ -144,10 +149,11 @@ train = load_data('features/train')
 test = load_data('features/test')
 train, test = preprocessing_sklearn(train, test)
 
-X_train = train.drop(['deal_probability', 'image'], axis='columns')
+
+X_train = train.drop(['deal_probability', 'image','user_id'], axis='columns')
 y_train = train['deal_probability']
 
-X_test = test.drop(['deal_probability', 'image', 'item_id'], axis='columns')
+X_test = test.drop(['deal_probability', 'image', 'item_id','user_id'], axis='columns')
 
 
 sub = test[['item_id', 'deal_probability']].copy()
@@ -177,7 +183,7 @@ params = {'objective': 'reg:logistic',
 
 num_rounds = 30000
 
-X_test = xgb.DMatrix(X_test.as_matrix())
+X_test = xgb.DMatrix(X_test.astype(float).as_matrix())
 
 for i in folds_item_ids.keys():
 
@@ -188,8 +194,8 @@ for i in folds_item_ids.keys():
     y_fit = y_train[fit_mask]
     X_val = X_train[val_mask].drop('item_id', axis='columns')
     y_val = y_train[val_mask]
-    fit = xgb.DMatrix(X_fit.as_matrix(), y_fit.as_matrix())
-    val = xgb.DMatrix(X_val.as_matrix(), y_val.as_matrix())
+    fit = xgb.DMatrix(X_fit.astype(float).as_matrix(), y_fit.astype(float).as_matrix())
+    val = xgb.DMatrix(X_val.astype(float).as_matrix(), y_val.astype(float).as_matrix())
 
     evals_result = {}
     watchlist = [(fit, 'fit'), (val, 'val')]
