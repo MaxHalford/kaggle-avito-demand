@@ -17,13 +17,9 @@ def load_data(path_prefix):
     data = pd.read_csv(
         os.path.join(path_prefix, 'vanilla.csv'),
         dtype={
-            'category_name': 'category',
-            'parent_category_name': 'category',
+            'activation_dow': 'category',
             'user_type': 'category',
-            'image_top_1': 'category',
-            'param_1': 'category',
-            'param_2': 'category',
-            'param_3': 'category'
+            'image_top_1': 'category'
         }
     )
 
@@ -84,23 +80,18 @@ def load_data(path_prefix):
         on='item_id'
     )
 
-    # Add imagenet
-    # data = pd.merge(
-    #     left=data,
-    #     right=pd.read_csv(
-    #         os.path.join(path_prefix, 'imagenet.csv'),
-    #         usecols=['image', 'mean_probability', 'std_probability', 'object_0', 'object_0_probability'],
-    #         dtype={'object_0': 'category'}
-    #     ),
-    #     how='left',
-    #     on='image'
-    # )
-
     data = pd.merge(
         left=data,
         right=pd.read_csv('features/aggregated_features.csv'),
         how='left',
         on='user_id'
+    )
+
+    data = pd.merge(
+        left=data,
+        right=pd.read_csv(os.path.join(path_prefix, 'mistakes.csv')),
+        how='left',
+        on='item_id'
     )
 
     return data
@@ -116,7 +107,6 @@ test = load_data('features/test')
 sub = test[['item_id', 'deal_probability']].copy()
 sub['deal_probability'] = 1
 X_test = test.drop(['deal_probability', 'image', 'item_id', 'user_id'], axis='columns')
-
 
 # Load folds
 with open('folds/folds_item_ids.json') as infile:
@@ -137,14 +127,15 @@ params = {
     'boosting_type': 'gbdt',
     'metric': 'rmse',
     'num_leaves': 2 ** depth,
+    'max_depth': depth * 2,
     'min_data_per_group': 1000,
     'cat_smooth': 200,
-    'min_data_in_leaf': 30,
-    'learning_rate': 0.05,
+    'min_data_in_leaf': 120,
+    'learning_rate': 0.04,
     'feature_fraction': 0.7,
-    'bagging_fraction': 0.7,
+    'bagging_fraction': 0.8,
     'bagging_seed': 42,
-    'lambda_l1': 1,
+    'lambda_l1': 2,
     'lambda_l2': 2,
     'verbosity': 1
 }
@@ -202,8 +193,7 @@ print('Val RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
 feature_importances.to_csv('feature_importances.csv')
 
 # Save submission
-sub['deal_probability'] = (sub['deal_probability'] **
-                           (1 / len(folds_item_ids))).clip(0, 1)
+sub['deal_probability'] = (sub['deal_probability'] ** (1 / len(folds_item_ids))).clip(0, 1)
 sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     fit_mean,
     fit_std,
@@ -211,5 +201,3 @@ sub_name = 'submissions/lgbm_{:.5f}_{:.5f}_{:.5f}_{:.5f}.csv'.format(
     val_std
 )
 sub.to_csv(sub_name, index=False)
-
-# lgbm_vanilla_0.20387_0.00071_0.21960_0.00023.csv

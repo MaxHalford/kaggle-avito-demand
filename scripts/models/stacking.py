@@ -1,10 +1,10 @@
 import glob
 import json
 
+import lightgbm as lgbm
 import numpy as np
 import pandas as pd
 from sklearn import isotonic
-from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
 
@@ -15,18 +15,22 @@ def rmse(y_true, y_pred):
 
 # Choose which models to use
 model_names = [
-    'max_lgbm',
     'lgbm_2',
     'lgbm_6',
     'lgbm_8',
+    'lgbm_9',
     'lgbm_10',
     'lgbm_13',
     'catboost',
     'cnn_title',
     'extra_tree',
     'max_means',
+    'max_lgbm',
+    'max_nn',
     'NN',
-    'xgb_6'
+    'xgb_2',
+    'xgb_6',
+    'xgb_10'
 ]
 
 # Load the true labels in the right order
@@ -66,31 +70,59 @@ for model_name in model_names:
     print('{} has an average RMSE of {:.5f}'.format(model_name, rmse(y_train, X_train[model_name])))
 
 
-print(X_train.corr())
-
-print(X_test.corr())
-
 # Choose meta-model
-meta_model = linear_model.Ridge()
-
-# Determine the CV score of the meta-model for the lolz
-cv = model_selection.KFold(n_splits=5, shuffle=True, random_state=42)
-scores = model_selection.cross_val_score(
-    meta_model,
-    X_train,
-    y_train,
-    scoring=metrics.make_scorer(rmse)
+depth = 4
+meta_model = lgbm.LGBMRegressor(
+    objective='regression',
+    n_estimators=30000,
+    learning_rate=0.05,
+    num_leaves=2 ** depth,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    bagging_seed=42,
+    verbose=1
 )
-print('Meta-model RMSE: {:.5f} (±{:.5f})'.format(scores.mean(), scores.std()))
 
-# Train the model on all the data
-meta_model.fit(X_train, y_train)
-print('Intercept: {:.5f}'.format(meta_model.intercept_))
-for i, model_name in enumerate(model_names):
-    print('{} coefficient: {:.5f}'.format(model_name, meta_model.coef_[i]))
+# Determine the CV score of the meta-model
 
-# Make final predictions
-test = pd.read_csv('data/test.csv.zip')[['item_id']]
-test['deal_probability'] = meta_model.predict(X_test).clip(0, 1)
-test.to_csv(
-    'submissions/stacking_{:.5f}_{:.5f}.csv'.format(scores.mean(), scores.std()), index=False)
+n_splits = 5
+val_scores = [0] * n_splits
+
+sub = pd.read_csv('data/test.csv.zip')[['item_id']]
+sub['deal_probability'] = 0
+
+feature_importances = pd.DataFrame(index=X_train.columns)
+
+cv = model_selection.KFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+for i, (fit_idx, val_idx) in enumerate(cv.split(X_train, y_train)):
+
+    X_fit = X_train.iloc[fit_idx]
+    y_fit = y_train.iloc[fit_idx]
+    X_val = X_train.iloc[val_idx]
+    y_val = y_train.iloc[val_idx]
+
+    evals_result = {}
+    meta_model.fit(
+        X_fit,
+        y_fit,
+        eval_set=[(X_fit, y_fit), (X_val, y_val)],
+        eval_names=('fit', 'val'),
+        eval_metric='l2',
+        feature_name=X_fit.columns.tolist(),
+        early_stopping_rounds=50
+    )
+
+    val_scores[i] = np.sqrt(meta_model.best_score_['val']['l2'])
+    sub['deal_probability'] += meta_model.predict(X_test, num_iteration=meta_model.best_iteration_)
+    feature_importances[i] = meta_model.feature_importances_
+
+
+sub['deal_probability'] = (sub['deal_probability'] / n_splits).clip(0, 1)
+
+val_mean = np.mean(val_scores)
+val_std = np.std(val_scores)
+
+print('Local RMSE: {:.5f} (±{:.5f})'.format(val_mean, val_std))
+
+sub.to_csv('submissions/stacking_{:.5f}_{:.5f}.csv'.format(val_mean, val_std), index=False)
